@@ -16,147 +16,29 @@ export default function App() {
   const [treeCastingRecords, setTreeCastingRecords] = useState<TreeCastingRecord[]>([]);
   const [rollingRecords, setRollingRecords] = useState<RollingRecord[]>([]);
   const [productionRecords, setProductionRecords] = useState<ProductionRecord[]>([]);
-  const [storageType, setStorageType] = useState<"local" | "cloud" | "syncing">("local");
 
-  // Save changes to Netlify Blobs (with LocalStorage as fallback/cache)
-  const saveToStorage = async (key: string, data: any) => {
-    // 1. Update localStorage immediately as a fast local fallback/cache
-    localStorage.setItem(key, JSON.stringify(data));
-
-    // 2. Attempt to save to Netlify Blobs via serverless function
-    setStorageType("syncing");
-    try {
-      const response = await fetch("/.netlify/functions/records", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ key, data }),
-      });
-      if (response.ok) {
-        setStorageType("cloud");
-      } else {
-        console.warn(`Failed to save ${key} to Netlify Blobs. Status: ${response.status}`);
-        setStorageType("local");
-      }
-    } catch (err) {
-      console.error(`Error saving ${key} to Netlify Blobs:`, err);
-      setStorageType("local");
-    }
-  };
-
-  // Load from Netlify Blobs on boot (with Local Storage fallback)
+  // Local Storage Load
   useEffect(() => {
+    const savedCasting = localStorage.getItem("gold_loss_casting");
+    const savedTreeCasting = localStorage.getItem("gold_loss_tree_casting");
+    const savedRolling = localStorage.getItem("gold_loss_rolling");
+    const savedProduction = localStorage.getItem("gold_loss_production");
+
     const demoIds = ["cast-1", "cast-2", "tree-1", "roll-1", "roll-2", "roll-3", "prod-1", "prod-2"];
 
-    async function loadData() {
+    if (savedCasting) {
+      const parsed = JSON.parse(savedCasting);
+      setCastingRecords(parsed.filter((r: any) => !demoIds.includes(r.id)));
+    }
+    if (savedTreeCasting) {
+      const parsed = JSON.parse(savedTreeCasting);
+      setTreeCastingRecords(parsed.filter((r: any) => !demoIds.includes(r.id)));
+    }
+    if (savedRolling) {
       try {
-        const response = await fetch("/.netlify/functions/records");
-        if (!response.ok) {
-          throw new Error(`Server returned status ${response.status}`);
-        }
-        
-        const blobsData = await response.json();
-        setStorageType("cloud");
-
-        const casting = blobsData.casting || [];
-        const treeCasting = blobsData.treeCasting || [];
-        const rolling = blobsData.rolling || [];
-        const production = blobsData.production || [];
-
-        // Check if blobs are empty and local storage has records to migrate
-        const savedCasting = localStorage.getItem("gold_loss_casting");
-        const savedTreeCasting = localStorage.getItem("gold_loss_tree_casting");
-        const savedRolling = localStorage.getItem("gold_loss_rolling");
-        const savedProduction = localStorage.getItem("gold_loss_production");
-
-        const hasLocalData = savedCasting || savedTreeCasting || savedRolling || savedProduction;
-        const hasBlobsData = casting.length > 0 || treeCasting.length > 0 || rolling.length > 0 || production.length > 0;
-
-        if (hasLocalData && !hasBlobsData) {
-          console.log("Migrating local storage data to Netlify Blobs...");
-          setStorageType("syncing");
-
-          let migratedCasting = [];
-          let migratedTreeCasting = [];
-          let migratedRolling = [];
-          let migratedProduction = [];
-
-          if (savedCasting) {
-            migratedCasting = JSON.parse(savedCasting).filter((r: any) => !demoIds.includes(r.id));
-            await fetch("/.netlify/functions/records", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ key: "gold_loss_casting", data: migratedCasting }),
-            });
-          }
-          if (savedTreeCasting) {
-            migratedTreeCasting = JSON.parse(savedTreeCasting).filter((r: any) => !demoIds.includes(r.id));
-            await fetch("/.netlify/functions/records", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ key: "gold_loss_tree_casting", data: migratedTreeCasting }),
-            });
-          }
-          if (savedRolling) {
-            try {
-              const parsed = JSON.parse(savedRolling);
-              if (Array.isArray(parsed)) {
-                migratedRolling = parsed.map((r: any) => {
-                  const weightBefore = r.weightBefore !== undefined ? Number(r.weightBefore) : (r.before !== undefined ? Number(r.before) : 0);
-                  const weightAfter = r.weightAfter !== undefined ? Number(r.weightAfter) : (r.after !== undefined ? Number(r.after) : 0);
-                  const damagedWeight = r.damagedWeight !== undefined ? Number(r.damagedWeight) : (r.damaged !== undefined ? Number(r.damaged) : 0);
-                  const piecesCount = r.piecesCount !== undefined ? Number(r.piecesCount) : 1;
-                  const details = r.details || r.notes || "عملية سحب ودرفلة سابقة";
-                  const stageType = r.stageType || "bombing";
-                  const loss = r.loss !== undefined ? Number(r.loss) : (weightBefore - (weightAfter + damagedWeight));
-                  return { ...r, stageType, weightBefore, weightAfter, damagedWeight, piecesCount, details, loss };
-                }).filter((r: any) => !demoIds.includes(r.id));
-                
-                await fetch("/.netlify/functions/records", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ key: "gold_loss_rolling", data: migratedRolling }),
-                });
-              }
-            } catch (e) {
-              console.error("Failed to parse local rolling data for migration:", e);
-            }
-          }
-          if (savedProduction) {
-            try {
-              const parsed = JSON.parse(savedProduction);
-              if (Array.isArray(parsed)) {
-                migratedProduction = parsed.map((r: any) => {
-                  const finalWeight = r.finalWeight !== undefined ? Number(r.finalWeight) : (r.beadWeight !== undefined ? Number(r.beadWeight) : Number(r.productionWeight || 0));
-                  const piecesCount = r.piecesCount !== undefined ? Number(r.piecesCount) : 1;
-                  const details = r.details || r.notes || "عقد أو غوايش صياغة سابقة";
-                  const receiverName = r.receiverName || "الموظف المستلم";
-                  return { ...r, finalWeight, piecesCount, details, receiverName };
-                }).filter((r: any) => !demoIds.includes(r.id));
-
-                await fetch("/.netlify/functions/records", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ key: "gold_loss_production", data: migratedProduction }),
-                });
-              }
-            } catch (e) {
-              console.error("Failed to parse local production data for migration:", e);
-            }
-          }
-
-          setCastingRecords(migratedCasting);
-          setTreeCastingRecords(migratedTreeCasting);
-          setRollingRecords(migratedRolling);
-          setProductionRecords(migratedProduction);
-          setStorageType("cloud");
-        } else {
-          // Normal case: Blobs are primary source
-          setCastingRecords(casting.filter((r: any) => !demoIds.includes(r.id)));
-          setTreeCastingRecords(treeCasting.filter((r: any) => !demoIds.includes(r.id)));
-
-          const migratedRolling = rolling.map((r: any) => {
+        const parsed = JSON.parse(savedRolling);
+        if (Array.isArray(parsed)) {
+          const migrated = parsed.map((r: any) => {
             const weightBefore = r.weightBefore !== undefined ? Number(r.weightBefore) : (r.before !== undefined ? Number(r.before) : 0);
             const weightAfter = r.weightAfter !== undefined ? Number(r.weightAfter) : (r.after !== undefined ? Number(r.after) : 0);
             const damagedWeight = r.damagedWeight !== undefined ? Number(r.damagedWeight) : (r.damaged !== undefined ? Number(r.damaged) : 0);
@@ -164,78 +46,58 @@ export default function App() {
             const details = r.details || r.notes || "عملية سحب ودرفلة سابقة";
             const stageType = r.stageType || "bombing";
             const loss = r.loss !== undefined ? Number(r.loss) : (weightBefore - (weightAfter + damagedWeight));
-            return { ...r, stageType, weightBefore, weightAfter, damagedWeight, piecesCount, details, loss };
-          }).filter((r: any) => !demoIds.includes(r.id));
-          setRollingRecords(migratedRolling);
-
-          const migratedProduction = production.map((r: any) => {
+            return {
+              ...r,
+              stageType,
+              weightBefore,
+              weightAfter,
+              damagedWeight,
+              piecesCount,
+              details,
+              loss,
+            };
+          });
+          setRollingRecords(migrated.filter((r: any) => !demoIds.includes(r.id)));
+        } else {
+          setRollingRecords([]);
+        }
+      } catch (err) {
+        console.error("Failed to migrate old rolling records:", err);
+        setRollingRecords([]);
+      }
+    }
+    if (savedProduction) {
+      try {
+        const parsed = JSON.parse(savedProduction);
+        if (Array.isArray(parsed)) {
+          const migrated = parsed.map((r: any) => {
             const finalWeight = r.finalWeight !== undefined ? Number(r.finalWeight) : (r.beadWeight !== undefined ? Number(r.beadWeight) : Number(r.productionWeight || 0));
             const piecesCount = r.piecesCount !== undefined ? Number(r.piecesCount) : 1;
             const details = r.details || r.notes || "عقد أو غوايش صياغة سابقة";
             const receiverName = r.receiverName || "الموظف المستلم";
-            return { ...r, finalWeight, piecesCount, details, receiverName };
-          }).filter((r: any) => !demoIds.includes(r.id));
-          setProductionRecords(migratedProduction);
+            return {
+              ...r,
+              finalWeight,
+              piecesCount,
+              details,
+              receiverName,
+            };
+          });
+          setProductionRecords(migrated.filter((r: any) => !demoIds.includes(r.id)));
+        } else {
+          setProductionRecords([]);
         }
       } catch (err) {
-        console.warn("Failed to load records from Netlify Blobs, falling back to Local Storage:", err);
-        setStorageType("local");
-
-        const savedCasting = localStorage.getItem("gold_loss_casting");
-        const savedTreeCasting = localStorage.getItem("gold_loss_tree_casting");
-        const savedRolling = localStorage.getItem("gold_loss_rolling");
-        const savedProduction = localStorage.getItem("gold_loss_production");
-
-        if (savedCasting) {
-          const parsed = JSON.parse(savedCasting);
-          setCastingRecords(parsed.filter((r: any) => !demoIds.includes(r.id)));
-        }
-        if (savedTreeCasting) {
-          const parsed = JSON.parse(savedTreeCasting);
-          setTreeCastingRecords(parsed.filter((r: any) => !demoIds.includes(r.id)));
-        }
-        if (savedRolling) {
-          try {
-            const parsed = JSON.parse(savedRolling);
-            if (Array.isArray(parsed)) {
-              const migrated = parsed.map((r: any) => {
-                const weightBefore = r.weightBefore !== undefined ? Number(r.weightBefore) : (r.before !== undefined ? Number(r.before) : 0);
-                const weightAfter = r.weightAfter !== undefined ? Number(r.weightAfter) : (r.after !== undefined ? Number(r.after) : 0);
-                const damagedWeight = r.damagedWeight !== undefined ? Number(r.damagedWeight) : (r.damaged !== undefined ? Number(r.damaged) : 0);
-                const piecesCount = r.piecesCount !== undefined ? Number(r.piecesCount) : 1;
-                const details = r.details || r.notes || "عملية سحب ودرفلة سابقة";
-                const stageType = r.stageType || "bombing";
-                const loss = r.loss !== undefined ? Number(r.loss) : (weightBefore - (weightAfter + damagedWeight));
-                return { ...r, stageType, weightBefore, weightAfter, damagedWeight, piecesCount, details, loss };
-              });
-              setRollingRecords(migrated.filter((r: any) => !demoIds.includes(r.id)));
-            }
-          } catch (e) {
-            console.error(e);
-          }
-        }
-        if (savedProduction) {
-          try {
-            const parsed = JSON.parse(savedProduction);
-            if (Array.isArray(parsed)) {
-              const migrated = parsed.map((r: any) => {
-                const finalWeight = r.finalWeight !== undefined ? Number(r.finalWeight) : (r.beadWeight !== undefined ? Number(r.beadWeight) : Number(r.productionWeight || 0));
-                const piecesCount = r.piecesCount !== undefined ? Number(r.piecesCount) : 1;
-                const details = r.details || r.notes || "عقد أو غوايش صياغة سابقة";
-                const receiverName = r.receiverName || "الموظف المستلم";
-                return { ...r, finalWeight, piecesCount, details, receiverName };
-              });
-              setProductionRecords(migrated.filter((r: any) => !demoIds.includes(r.id)));
-            }
-          } catch (e) {
-            console.error(e);
-          }
-        }
+        console.error("Failed to migrate old production records:", err);
+        setProductionRecords([]);
       }
     }
-
-    loadData();
   }, []);
+
+  // Save changes to Local Storage
+  const saveToStorage = (key: string, data: any) => {
+    localStorage.setItem(key, JSON.stringify(data));
+  };
 
   // Seeding ledger data mirroring the notebook's handwriting exactly!
   const seedDemoLedger = () => {
@@ -350,10 +212,10 @@ export default function App() {
       setTreeCastingRecords([]);
       setRollingRecords([]);
       setProductionRecords([]);
-      saveToStorage("gold_loss_casting", []);
-      saveToStorage("gold_loss_tree_casting", []);
-      saveToStorage("gold_loss_rolling", []);
-      saveToStorage("gold_loss_production", []);
+      localStorage.removeItem("gold_loss_casting");
+      localStorage.removeItem("gold_loss_tree_casting");
+      localStorage.removeItem("gold_loss_rolling");
+      localStorage.removeItem("gold_loss_production");
     }
   };
 
@@ -486,7 +348,6 @@ export default function App() {
         onClearData={handleClearData}
         onExportJSON={handleExportJSON}
         onImportJSON={handleImportJSON}
-        storageType={storageType}
         recordCount={{
           casting: castingRecords.length,
           treeCasting: treeCastingRecords.length,

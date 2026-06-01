@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { CastingRecord } from "../types";
-import { FilePlus2, Trash2, Calendar, Scale, Hammer, Search } from "lucide-react";
+import { FilePlus2, Trash2, Calendar, Scale, Hammer, Search, Clock } from "lucide-react";
 
 interface CastingTabProps {
   records: CastingRecord[];
@@ -14,6 +14,12 @@ export const CastingTab: React.FC<CastingTabProps> = ({
   onDeleteRecord,
 }) => {
   const [date, setDate] = useState<string>(new Date().toISOString().substring(0, 10));
+  const [time, setTime] = useState<string>(() => {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    return `${hours}:${minutes}`;
+  });
   const [kar, setKar] = useState<string>("");
   const [sabba, setSabba] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
@@ -33,6 +39,7 @@ export const CastingTab: React.FC<CastingTabProps> = ({
     }
     onAddRecord({
       date,
+      time,
       kar: parsedKar,
       sabba: parsedSabba,
       notes: notes.trim(),
@@ -40,6 +47,12 @@ export const CastingTab: React.FC<CastingTabProps> = ({
     setKar("");
     setSabba("");
     setNotes("");
+    
+    // Reset time to current
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    setTime(`${hours}:${minutes}`);
   };
 
   // Filter records
@@ -76,18 +89,32 @@ export const CastingTab: React.FC<CastingTabProps> = ({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Date */}
-            <div>
-              <label className="block text-xs font-semibold text-[#aaa] mb-1.5 flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-[#888]" /> التاريخ
-              </label>
-              <input
-                type="date"
-                required
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-4 py-2.5 text-sm focus:border-[#C5A028] focus:ring-1 focus:ring-[#C5A028] focus:bg-[#070707] focus:outline-none transition-all duration-200 font-mono text-right"
-              />
+             {/* Date & Time */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-[#888]" /> التاريخ
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] focus:ring-1 focus:ring-[#C5A028] focus:bg-[#070707] focus:outline-none transition-all duration-200 font-mono text-right"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-[#888]" /> الوقت
+                </label>
+                <input
+                  type="time"
+                  required
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] focus:ring-1 focus:ring-[#C5A028] focus:bg-[#070707] focus:outline-none transition-all duration-200 font-mono text-right"
+                />
+              </div>
             </div>
 
             {/* Kar weight */}
@@ -216,7 +243,7 @@ export const CastingTab: React.FC<CastingTabProps> = ({
                   <th className="px-4 py-3.5 text-left font-bold font-mono">النقص (-) أو الزيادة (+)</th>
                   <th className="px-4 py-3.5 text-left font-bold font-mono">وزن الصبة الناتجة</th>
                   <th className="px-4 py-3.5 text-left font-bold font-mono">استلام كسر (خام ٢١)</th>
-                  <th className="px-4 py-3.5 font-bold text-center">التاريخ</th>
+                  <th className="px-4 py-3.5 font-bold text-center">التاريخ / الوقت</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#222]">
@@ -260,7 +287,10 @@ export const CastingTab: React.FC<CastingTabProps> = ({
                           {record.kar.toFixed(3)}
                         </td>
                         <td className="px-4 py-3 text-center text-[#888] text-xs whitespace-nowrap">
-                          {record.date}
+                          <div>{record.date}</div>
+                          {record.time && (
+                            <div className="text-[#C5A028] font-mono text-[10px] mt-0.5">{record.time}</div>
+                          )}
                         </td>
                       </tr>
                     );

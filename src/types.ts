@@ -1,6 +1,7 @@
 export interface CastingRecord {
   id: string;
   date: string;
+  time?: string; // Time of the operation (e.g., "14:30")
   kar: number; // Raw material gold (الكر / الكسر عيار 21)
   sabba: number; // Cast gold ingot (الصبة السبيكة)
   loss: number; // Melt loss (عجز/نقص أو زيادة = كر - صبة)
@@ -10,6 +11,7 @@ export interface CastingRecord {
 export interface TreeCastingRecord {
   id: string;
   date: string;
+  time?: string; // Time of the operation (e.g., "14:30")
   inputWeight: number; // الذهب المدخل للشجرة (غرام)
   productionWeight: number; // وزن الإنتاج الصافي (غرام)
   damagedWeight: number; // وزن التالف / الخردة (غرام)
@@ -27,6 +29,7 @@ export interface RollingRecord {
   id: string;
   stageType: "bombing" | "repair" | "vacuum";
   date: string; // تاريخ العملية
+  time?: string; // وقت العملية
   weightBefore: number; // الوزن قبل العملية
   weightAfter: number; // الوزن بعد العملية
   loss: number; // العجز = قبل - (بعد + التالف)
@@ -41,6 +44,7 @@ export interface RollingRecord {
 export interface ProductionRecord {
   id: string;
   date: string; // تاريخ عملية التسغيل وتسليم الإنتاج
+  time?: string; // وقت تسليم الإنتاج
   finalWeight: number; // الوزن النهائي المنتج الكامل
   piecesCount: number; // عدد القطع المنتجة
   details: string; // تفاصيل المشغولات والإنتاج

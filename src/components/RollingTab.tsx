@@ -15,7 +15,8 @@ import {
   Layers,
   Wrench,
   Flame,
-  Wind
+  Wind,
+  Clock
 } from "lucide-react";
 
 interface RollingTabProps {
@@ -34,6 +35,12 @@ export const RollingTab: React.FC<RollingTabProps> = ({
 
   // General fields
   const [date, setDate] = useState<string>(new Date().toISOString().substring(0, 10));
+  const [time, setTime] = useState<string>(() => {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    return `${hours}:${minutes}`;
+  });
   const [weightBefore, setWeightBefore] = useState<string>("");
   const [weightAfter, setWeightAfter] = useState<string>("");
   const [damagedWeight, setDamagedWeight] = useState<string>("");
@@ -103,6 +110,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
     onAddRecord({
       stageType,
       date,
+      time,
       weightBefore: parsedBefore,
       weightAfter: parsedAfter,
       damagedWeight: stageType !== "repair" ? parsedDamaged : undefined,
@@ -122,6 +130,12 @@ export const RollingTab: React.FC<RollingTabProps> = ({
     setNotes("");
     setImage("");
     setDamagedImage("");
+
+    // Reset time
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    setTime(`${hours}:${minutes}`);
   };
 
   // Filter records based on state
@@ -258,18 +272,32 @@ export const RollingTab: React.FC<RollingTabProps> = ({
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Process Date */}
-              <div>
-                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 text-[#888]" /> تاريخ العملية
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-4 py-2.5 text-sm focus:border-[#C5A028] focus:ring-1 focus:ring-[#C5A028] focus:bg-[#070707] focus:outline-none transition-all duration-200 font-mono text-right"
-                />
+              {/* Process Date & Time */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#aaa] mb-1.5 flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-[#888]" /> تاريخ العملية
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] focus:ring-1 focus:ring-[#C5A028] focus:bg-[#070707] focus:outline-none transition-all duration-200 font-mono text-right"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#aaa] mb-1.5 flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-[#888]" /> الوقت
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] focus:ring-1 focus:ring-[#C5A028] focus:bg-[#070707] focus:outline-none transition-all duration-200 font-mono text-right"
+                  />
+                </div>
               </div>
 
               {/* Weight Grid: Before & After */}
@@ -540,7 +568,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                     <th className="px-3 py-3 text-left font-bold font-mono">نقص العملية</th>
                     <th className="px-3 py-3 text-left font-bold font-mono">التعويض (بعد + تالف)</th>
                     <th className="px-3 py-3 text-left font-bold font-mono">الوزن قبل</th>
-                    <th className="px-3 py-3 font-bold text-center">المرحلة والتاريخ</th>
+                    <th className="px-3 py-3 font-bold text-center">المرحلة والتاريخ / الوقت</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#222]">
@@ -693,7 +721,10 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                                   <Wind className="w-2.5 h-2.5" /> صب فاكيوم
                                 </span>
                               )}
-                              <span className="text-[10px] text-[#555] font-mono">{record.date}</span>
+                              <span className="text-[10px] text-[#fff]/60 font-mono">{record.date}</span>
+                              {record.time && (
+                                <span className="text-[10px] text-[#C5A028] font-mono font-bold">{record.time}</span>
+                              )}
                             </div>
                           </td>
                         </tr>

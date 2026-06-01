@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { TreeCastingRecord } from "../types";
-import { FilePlus2, Trash2, Calendar, Scale, TreePine, Search, UploadCloud, Eye, Image as ImageIcon, XCircle, CheckCircle, EyeOff, AlertTriangle } from "lucide-react";
+import { FilePlus2, Trash2, Calendar, Scale, TreePine, Search, UploadCloud, Eye, Image as ImageIcon, XCircle, CheckCircle, EyeOff, AlertTriangle, Clock } from "lucide-react";
 
 interface TreeCastingTabProps {
   records: TreeCastingRecord[];
@@ -14,6 +14,12 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
   onDeleteRecord,
 }) => {
   const [date, setDate] = useState<string>(new Date().toISOString().substring(0, 10));
+  const [time, setTime] = useState<string>(() => {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    return `${hours}:${minutes}`;
+  });
   const [inputWeight, setInputWeight] = useState<string>("");
   const [productionWeight, setProductionWeight] = useState<string>("");
   const [damagedWeight, setDamagedWeight] = useState<string>("");
@@ -81,6 +87,7 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
 
     onAddRecord({
       date,
+      time,
       inputWeight: parsedInput,
       productionWeight: parsedProd,
       damagedWeight: parsedDamaged,
@@ -104,6 +111,12 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
     setDamagedDetails("");
     setDamagedImage("");
     setNotes("");
+
+    // Reset time to current
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    setTime(`${hours}:${minutes}`);
   };
 
   const filteredRecords = records.filter((r) => {
@@ -147,18 +160,32 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Date */}
-              <div>
-                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 text-[#888]" /> التاريخ
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-4 py-2.5 text-sm focus:border-[#C5A028] focus:ring-1 focus:ring-[#C5A028] focus:bg-[#070707] focus:outline-none transition-all duration-200 font-mono text-right"
-                />
+              {/* Date & Time */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-[#aaa] mb-1.5 flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-[#888]" /> التاريخ
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] focus:ring-1 focus:ring-[#C5A028] focus:bg-[#070707] focus:outline-none transition-all duration-200 font-mono text-right"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#aaa] mb-1.5 flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-[#888]" /> الوقت
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] focus:ring-1 focus:ring-[#C5A028] focus:bg-[#070707] focus:outline-none transition-all duration-200 font-mono text-right"
+                  />
+                </div>
               </div>
 
               {/* Gold Input Weight */}
@@ -413,7 +440,7 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
                     <th className="px-3 py-3 text-left font-bold font-mono">النقص/العجز</th>
                     <th className="px-3 py-3 text-left font-bold font-mono">الإنتاج + التالف</th>
                     <th className="px-3 py-3 text-left font-bold font-mono">وزن المدخل</th>
-                    <th className="px-3 py-3 font-bold text-center">التاريخ</th>
+                    <th className="px-3 py-3 font-bold text-center">التاريخ / الوقت</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#222]">
@@ -532,7 +559,10 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
 
                           {/* Date */}
                           <td className="px-3 py-3 text-center text-[#888] text-xs whitespace-nowrap">
-                            {record.date}
+                            <div>{record.date}</div>
+                            {record.time && (
+                              <div className="text-[#C5A028] font-mono text-[10px] mt-0.5">{record.time}</div>
+                            )}
                           </td>
                         </tr>
                       );
