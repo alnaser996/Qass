@@ -20,6 +20,36 @@ export const Header: React.FC<HeaderProps> = ({
   theme,
   onToggleTheme,
 }) => {
+  const [deferredPrompt, setDeferredPrompt] = React.useState<any>(null);
+  const [isInstallable, setIsInstallable] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setIsInstallable(false);
+    }
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User installation choice outcome: ${outcome}`);
+    setDeferredPrompt(null);
+    setIsInstallable(false);
+  };
+
   return (
     <header className="bg-gradient-to-b from-[#111] to-[#0a0a0a] border-b border-[#222] text-[#e0e0e0] py-7 px-4 md:px-8 shadow-2xl relative overflow-hidden">
       {/* Sleek top ambient glow line */}
@@ -51,6 +81,16 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action Controls */}
         <div className="flex flex-wrap items-center justify-center gap-3">
+          {isInstallable && (
+            <button
+              onClick={handleInstallClick}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-[#C5A028] hover:from-amber-600 hover:to-[#aa8010] text-[#0a0a0a] font-extrabold text-sm rounded shadow-[0_4px_15px_rgba(197,160,40,0.35)] cursor-pointer hover:scale-105 active:scale-95 transition-all animate-pulse"
+              title="تثبيت التطبيق على هاتفكم أو الحاسوب لتسهيل الاستخدام والتشغيل أوفلاين بالكامل"
+            >
+              <span>تثبيت التطبيق 📱</span>
+            </button>
+          )}
+
           <button
             onClick={onToggleTheme}
             className="flex items-center justify-center p-2 bg-[#1a1a1a] hover:bg-neutral-800 text-[#C5A028] border border-[#2a2a2a] rounded cursor-pointer transition-all duration-200"

@@ -3,9 +3,10 @@ export interface CastingRecord {
   date: string;
   time?: string; // Time of the operation (e.g., "14:30")
   kar: number; // Raw material gold (الكر / الكسر عيار 21)
-  sabba: number; // Cast gold ingot (الصبة السبيكة)
-  loss: number; // Melt loss (عجز/نقص أو زيادة = كر - صبة)
+  sabba?: number; // Cast gold ingot (الصبة السبيكة)
+  loss?: number; // Melt loss (عجز/نقص أو زيادة = كر - صبة)
   notes?: string;
+  isPending?: boolean; // هل العملية مسجلة (قبل) فقط وبانتظار (البعد)
 }
 
 export interface TreeCastingRecord {
@@ -13,16 +14,17 @@ export interface TreeCastingRecord {
   date: string;
   time?: string; // Time of the operation (e.g., "14:30")
   inputWeight: number; // الذهب المدخل للشجرة (غرام)
-  productionWeight: number; // وزن الإنتاج الصافي (غرام)
-  damagedWeight: number; // وزن التالف / الخردة (غرام)
-  loss: number; // النقص أو الزيادة = الذهب المدخل - (الإنتاج + التالف)
-  productionCount: number; // عدد قطع الإنتاج
-  productionDetails: string; // تفاصيل قطع الإنتاج
+  productionWeight?: number; // وزن الإنتاج الصافي (غرام)
+  damagedWeight?: number; // وزن التالف / الخردة (غرام)
+  loss?: number; // النقص أو الزيادة = الذهب المدخل - (الإنتاج + التالف)
+  productionCount?: number; // عدد قطع الإنتاج
+  productionDetails?: string; // تفاصيل قطع الإنتاج
   productionImage?: string; // صورة قطع الإنتاج (base64)
-  damagedCount: number; // عدد قطع التالف
-  damagedDetails: string; // تفاصيل قطع التالف
+  damagedCount?: number; // عدد قطع التالف
+  damagedDetails?: string; // تفاصيل قطع التالف
   damagedImage?: string; // صورة قطع التالف (base64)
   notes?: string;
+  isPending?: boolean; // هل العملية مسجلة (قبل) وبانتظار نتائج الشجرة (البعد)
 }
 
 export interface RollingRecord {
@@ -31,14 +33,15 @@ export interface RollingRecord {
   date: string; // تاريخ العملية
   time?: string; // وقت العملية
   weightBefore: number; // الوزن قبل العملية
-  weightAfter: number; // الوزن بعد العملية
-  loss: number; // العجز = قبل - (بعد + التالف)
+  weightAfter?: number; // الوزن بعد العملية
+  loss?: number; // العجز = قبل - (بعد + التالف)
   damagedWeight?: number; // وزن التالف إن وجد
   damagedImage?: string; // صورة التالف
-  piecesCount: number; // عدد القطع
-  details: string; // تفاصيل أو موصفات
+  piecesCount?: number; // عدد القطع
+  details?: string; // تفاصيل أو موصفات
   image?: string; // صورة العملية/القطع المصاحبة
   notes?: string; // ملاحظات عامة
+  isPending?: boolean; // هل العملية مسجلة (قبل) وبانتظار الوزن النهائي (البعد)
 }
 
 export interface ProductionRecord {

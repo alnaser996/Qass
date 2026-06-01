@@ -240,14 +240,31 @@ export default function App() {
   };
 
   // Add Casting record helper
-  const handleAddCasting = (record: Omit<CastingRecord, "id" | "loss">) => {
-    const computedLoss = record.kar - record.sabba; // allows negative values (gain)
+  const handleAddCasting = (record: Omit<CastingRecord, "id" | "loss"> & { isPending?: boolean }) => {
+    const computedLoss = record.isPending ? undefined : record.kar - (record.sabba ?? 0);
     const newRecord: CastingRecord = {
       ...record,
       id: `cast-${Date.now()}`,
       loss: computedLoss,
     };
     const updated = [newRecord, ...castingRecords];
+    setCastingRecords(updated);
+    saveToStorage("gold_loss_casting", updated);
+  };
+
+  const handleUpdateCasting = (id: string, sabba: number, notes?: string) => {
+    const updated = castingRecords.map((r) => {
+      if (r.id === id) {
+        return {
+          ...r,
+          sabba,
+          loss: r.kar - sabba,
+          isPending: false,
+          notes: notes !== undefined ? notes : r.notes,
+        };
+      }
+      return r;
+    });
     setCastingRecords(updated);
     saveToStorage("gold_loss_casting", updated);
   };
@@ -259,14 +276,49 @@ export default function App() {
   };
 
   // Add Tree Casting record helper
-  const handleAddTreeCasting = (record: Omit<TreeCastingRecord, "id" | "loss">) => {
-    const computedLoss = record.inputWeight - (record.productionWeight + record.damagedWeight);
+  const handleAddTreeCasting = (record: Omit<TreeCastingRecord, "id" | "loss"> & { isPending?: boolean }) => {
+    const computedLoss = record.isPending ? undefined : record.inputWeight - ((record.productionWeight ?? 0) + (record.damagedWeight ?? 0));
     const newRecord: TreeCastingRecord = {
       ...record,
       id: `tree-${Date.now()}`,
       loss: computedLoss,
     };
     const updated = [newRecord, ...treeCastingRecords];
+    setTreeCastingRecords(updated);
+    saveToStorage("gold_loss_tree_casting", updated);
+  };
+
+  const handleUpdateTreeCasting = (
+    id: string,
+    productionWeight: number,
+    damagedWeight: number,
+    productionCount: number,
+    productionDetails: string,
+    damagedCount: number,
+    damagedDetails: string,
+    notes?: string,
+    productionImage?: string,
+    damagedImage?: string
+  ) => {
+    const updated = treeCastingRecords.map((r) => {
+      if (r.id === id) {
+        return {
+          ...r,
+          productionWeight,
+          damagedWeight,
+          productionCount,
+          productionDetails,
+          damagedCount,
+          damagedDetails,
+          loss: r.inputWeight - (productionWeight + damagedWeight),
+          isPending: false,
+          notes: notes !== undefined ? notes : r.notes,
+          productionImage: productionImage || r.productionImage,
+          damagedImage: damagedImage || r.damagedImage,
+        };
+      }
+      return r;
+    });
     setTreeCastingRecords(updated);
     saveToStorage("gold_loss_tree_casting", updated);
   };
@@ -278,14 +330,45 @@ export default function App() {
   };
 
   // Add Rolling record helper
-  const handleAddRolling = (record: Omit<RollingRecord, "id" | "loss">) => {
-    const computedLoss = record.weightBefore - (record.weightAfter + (record.damagedWeight || 0));
+  const handleAddRolling = (record: Omit<RollingRecord, "id" | "loss"> & { isPending?: boolean }) => {
+    const computedLoss = record.isPending ? undefined : record.weightBefore - ((record.weightAfter ?? 0) + (record.damagedWeight || 0));
     const newRecord: RollingRecord = {
       ...record,
       id: `roll-${Date.now()}`,
       loss: computedLoss,
     };
     const updated = [newRecord, ...rollingRecords];
+    setRollingRecords(updated);
+    saveToStorage("gold_loss_rolling", updated);
+  };
+
+  const handleUpdateRolling = (
+    id: string,
+    weightAfter: number,
+    damagedWeight?: number,
+    piecesCount?: number,
+    details?: string,
+    notes?: string,
+    image?: string,
+    damagedImage?: string
+  ) => {
+    const updated = rollingRecords.map((r) => {
+      if (r.id === id) {
+        return {
+          ...r,
+          weightAfter,
+          damagedWeight,
+          piecesCount,
+          details,
+          loss: r.weightBefore - (weightAfter + (damagedWeight || 0)),
+          isPending: false,
+          notes: notes !== undefined ? notes : r.notes,
+          image: image || r.image,
+          damagedImage: damagedImage || r.damagedImage,
+        };
+      }
+      return r;
+    });
     setRollingRecords(updated);
     saveToStorage("gold_loss_rolling", updated);
   };
@@ -460,6 +543,7 @@ export default function App() {
               records={castingRecords}
               onAddRecord={handleAddCasting}
               onDeleteRecord={handleDeleteCasting}
+              onUpdateRecord={handleUpdateCasting}
             />
           )}
 
@@ -468,6 +552,7 @@ export default function App() {
               records={treeCastingRecords}
               onAddRecord={handleAddTreeCasting}
               onDeleteRecord={handleDeleteTreeCasting}
+              onUpdateRecord={handleUpdateTreeCasting}
             />
           )}
 
@@ -476,6 +561,7 @@ export default function App() {
               records={rollingRecords}
               onAddRecord={handleAddRolling}
               onDeleteRecord={handleDeleteRolling}
+              onUpdateRecord={handleUpdateRolling}
             />
           )}
 
