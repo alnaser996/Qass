@@ -7,6 +7,7 @@ interface HeaderProps {
   onExportJSON: () => void;
   onImportJSON: (event: React.ChangeEvent<HTMLInputElement>) => void;
   recordCount: { casting: number; treeCasting: number; rolling: number; production: number };
+  storageType?: "local" | "cloud" | "syncing";
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -15,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   onExportJSON,
   onImportJSON,
   recordCount,
+  storageType = "local",
 }) => {
   return (
     <header className="bg-gradient-to-b from-[#111] to-[#0a0a0a] border-b border-[#222] text-[#e0e0e0] py-7 px-4 md:px-8 shadow-2xl relative overflow-hidden">
@@ -32,9 +34,21 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="text-[10px] uppercase tracking-wider bg-[#C5A028]/10 text-[#C5A028] border border-[#C5A028]/35 px-2.5 py-0.5 rounded-full font-bold">
                 إدارة الجرد والرقابة الفنية
               </span>
-              <span className="text-[10px] bg-neutral-900 text-neutral-400 border border-neutral-800 px-2.5 py-0.5 rounded-full flex items-center gap-1 font-medium">
-                <ShieldCheck className="w-3.5 h-3.5 text-[#C5A028]" /> تخزين محلي مشفر تلقائياً
-              </span>
+              {storageType === "cloud" && (
+                <span className="text-[10px] bg-emerald-950/40 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1 font-bold shadow-[0_0_10px_rgba(16,185,129,0.1)]">
+                  <Database className="w-3.5 h-3.5 text-emerald-400" /> مزامنة سحابية آمنة (Netlify Blobs)
+                </span>
+              )}
+              {storageType === "syncing" && (
+                <span className="text-[10px] bg-amber-950/40 text-amber-400 border border-amber-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1 font-bold animate-pulse">
+                  <Database className="w-3.5 h-3.5 text-amber-400" /> جاري الحفظ في السحابة...
+                </span>
+              )}
+              {storageType === "local" && (
+                <span className="text-[10px] bg-neutral-900 text-neutral-400 border border-neutral-800 px-2.5 py-0.5 rounded-full flex items-center gap-1 font-medium">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#C5A028]" /> تخزين محلي (الوضع الاحتياطي)
+                </span>
+              )}
             </div>
             <h1 className="text-2xl md:text-3.5xl font-extrabold text-[#C5A028] tracking-tight mt-1 bg-gradient-to-l from-yellow-400 via-amber-200 to-yellow-600 bg-clip-text text-transparent drop-shadow-sm font-sans">
               جرد نقيصة معمل قاسم العبسلي
