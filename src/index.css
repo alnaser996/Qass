@@ -1,0 +1,162 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Cairo", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    background-color: #050505;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Elegant keyframe animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d0d0d;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #222;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #C5A028;
+}
+
+/* Professional Print Stylesheet for High Fidelity PDF Generation */
+@media print {
+  /* Hide typical on-screen elements */
+  header, 
+  nav, 
+  button, 
+  input, 
+  textarea, 
+  select, 
+  .no-print,
+  [role="tablist"],
+  .trend-chart-container {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  /* Reset backgrounds and text to paper-friendly colors */
+  body, 
+  #root, 
+  main,
+  .print-root-container {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Force print paper visibility */
+  .print-paper {
+    display: block !important;
+    visibility: visible !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 1.5cm !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: none !important;
+    box-shadow: none !important;
+    direction: rtl !important;
+  }
+
+  /* Ensure backgrounds render appropriately on paper standard */
+  .print-card {
+    background-color: #ffffff !important;
+    border: 1px solid #cbd5e0 !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+  }
+
+  .print-text-dark {
+    color: #1a202c !important;
+  }
+
+  .print-text-amber {
+    color: #b7791f !important;
+  }
+
+  .print-text-emerald {
+    color: #276749 !important;
+  }
+
+  .print-text-rose {
+    color: #9b2c2c !important;
+  }
+
+  .print-bg-light {
+    background-color: #f7fafc !important;
+  }
+
+  table {
+    page-break-inside: auto !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-top: 15px !important;
+  }
+  
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  th {
+    background-color: #edf2f7 !important;
+    color: #1a202c !important;
+    font-weight: bold !important;
+    border: 1px solid #cbd5e0 !important;
+    padding: 8px !important;
+  }
+
+  td {
+    border: 1px solid #cbd5e0 !important;
+    padding: 8px !important;
+    color: #000000 !important;
+    background-color: #ffffff !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+}
+

@@ -1,0 +1,6 @@
+{
+  "name": "جرد نقيصة معمل قاسم العبسلي",
+  "description": "نظام احترافي لمراقبة وجرد نقيصة وعجز الذهب متكامل مع تتبع الصهر والصب والدرفلة والتصليح والإنتاج النهائي لمعمل قاسم العبسلي",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
