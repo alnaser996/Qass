@@ -11,6 +11,26 @@ import { Hammer, Layers, Award, TrendingDown, ClipboardList, TreePine } from "lu
 export default function App() {
   const [activeTab, setActiveTab] = useState<"casting" | "tree_casting" | "rolling" | "production" | "analytics">("casting");
 
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    return (localStorage.getItem("gold_loss_theme") as "dark" | "light") || "dark";
+  });
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    localStorage.setItem("gold_loss_theme", nextTheme);
+  };
+
+  useEffect(() => {
+    if (theme === "light") {
+      document.body.classList.add("light-theme");
+      document.body.classList.remove("dark");
+    } else {
+      document.body.classList.remove("light-theme");
+      document.body.classList.add("dark");
+    }
+  }, [theme]);
+
   // State arrays for registers
   const [castingRecords, setCastingRecords] = useState<CastingRecord[]>([]);
   const [treeCastingRecords, setTreeCastingRecords] = useState<TreeCastingRecord[]>([]);
@@ -341,13 +361,15 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#e0e0e0] flex flex-col font-sans" dir="rtl">
+    <div className={`min-h-screen ${theme === "light" ? "bg-[#f5f5f7] text-[#1d1d1f]" : "bg-[#0a0a0a] text-[#e0e0e0]"} flex flex-col font-sans transition-colors duration-200`} dir="rtl">
       {/* Premium Branded Header */}
       <Header
         onImportDemo={seedDemoLedger}
         onClearData={handleClearData}
         onExportJSON={handleExportJSON}
         onImportJSON={handleImportJSON}
+        theme={theme}
+        onToggleTheme={toggleTheme}
         recordCount={{
           casting: castingRecords.length,
           treeCasting: treeCastingRecords.length,

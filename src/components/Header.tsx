@@ -1,5 +1,5 @@
 import React from "react";
-import { ListFilter, Sparkles, Database, Download, Upload, Trash2, ShieldCheck, Scale } from "lucide-react";
+import { ListFilter, Sparkles, Database, Download, Upload, Trash2, ShieldCheck, Scale, Sun, Moon } from "lucide-react";
 
 interface HeaderProps {
   onImportDemo: () => void;
@@ -7,6 +7,8 @@ interface HeaderProps {
   onExportJSON: () => void;
   onImportJSON: (event: React.ChangeEvent<HTMLInputElement>) => void;
   recordCount: { casting: number; treeCasting: number; rolling: number; production: number };
+  theme: "dark" | "light";
+  onToggleTheme: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -15,6 +17,8 @@ export const Header: React.FC<HeaderProps> = ({
   onExportJSON,
   onImportJSON,
   recordCount,
+  theme,
+  onToggleTheme,
 }) => {
   return (
     <header className="bg-gradient-to-b from-[#111] to-[#0a0a0a] border-b border-[#222] text-[#e0e0e0] py-7 px-4 md:px-8 shadow-2xl relative overflow-hidden">
@@ -47,6 +51,14 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action Controls */}
         <div className="flex flex-wrap items-center justify-center gap-3">
+          <button
+            onClick={onToggleTheme}
+            className="flex items-center justify-center p-2 bg-[#1a1a1a] hover:bg-neutral-800 text-[#C5A028] border border-[#2a2a2a] rounded cursor-pointer transition-all duration-200"
+            title={theme === "light" ? "التحول إلى الوضع الداكن (أسود)" : "التحول إلى الوضع المضيء (أبيض)"}
+          >
+            {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+          </button>
+
           <button
             onClick={onImportDemo}
             className="flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] hover:bg-[#C5A028] hover:text-[#0a0a0a] text-[#C5A028] border border-[#333] rounded text-sm transition-all shadow-sm font-medium group cursor-pointer"
