@@ -663,7 +663,9 @@ export default function App() {
     repairWeight: number,
     repairPieces: number,
     vacuumWeight: number,
-    vacuumPieces: number
+    vacuumPieces: number,
+    repairImage?: string,
+    vacuumImage?: string
   ) => {
     const roll = rollingRecords.find(r => r.id === rollId);
     if (!roll || roll.isPending || !roll.weightAfter) {
@@ -684,22 +686,14 @@ export default function App() {
         details: roll.details ? `جزء للتصليح - مفرع من وجبة (${roll.id}) - ${roll.details}` : `جزء للتصليح - مفرع من وجبة (${roll.id})`,
         notes: `تجزئة تلقائية لقطع تحتاج تصليح من وجبة التفجير (${roll.id})`,
         isPending: true,
-        beforeImage: roll.afterImage || roll.image,
+        beforeImage: repairImage || roll.afterImage || roll.image,
       };
       // We directly add it using handleAddRolling
-      const nextRecords = [
-        { ...newRepair, id: `roll-rep-${Date.now()}` },
-      ];
-      // Since react state is batch updated, we can append them together or call handleAddRolling sequentially.
-      // Sequential is fine, but to have clean state updates let's push them.
-      // Wait, let's create a temporary array to make sure both can get added cleanly:
       handleAddRolling(newRepair);
       itemsAddedMsg.push(`(${repairWeight.toFixed(3)}غ) بعدد (${repairPieces} قطع) لمرحلة التصليح اليدوي 🛠️`);
     }
 
-    // Add Vacuum segment if there's any weight to avoid double render delays, let's use a small timeout or merge.
-    // Actually, calling handleAddRolling twice in React works perfectly as we update states, but let's delay the second one slightly or just let state scheduler handle it.
-    // Even better, let's directly write a custom block that can add both in a single state update, or use a tiny delay:
+    // Add Vacuum segment if there's any weight
     if (vacuumWeight > 0) {
       setTimeout(() => {
         const newVacuum: Omit<RollingRecord, "id"> = {
@@ -711,7 +705,7 @@ export default function App() {
           details: roll.details ? `جزء للفاكيوم - مفرع من وجبة (${roll.id}) - ${roll.details}` : `جزء للفاكيوم - مفرع من وجبة (${roll.id})`,
           notes: `تجزئة تلقائية لقطع جاهزة مباشرة من وجبة التفجير (${roll.id})`,
           isPending: true,
-          beforeImage: roll.afterImage || roll.image,
+          beforeImage: vacuumImage || roll.afterImage || roll.image,
         };
         handleAddRolling(newVacuum);
       }, 50);

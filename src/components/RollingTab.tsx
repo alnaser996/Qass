@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { RollingRecord } from "../types";
-import { FilePlus2, Trash2, Calendar, Scale, Search, UploadCloud, Eye, EyeOff, XCircle, CheckCircle2, Clock, Layers, Flame, Wrench, ShieldAlert, Award, RefreshCcw, Edit } from "lucide-react";
+import { FilePlus2, Trash2, Calendar, Scale, Search, UploadCloud, Eye, EyeOff, XCircle, CheckCircle2, Clock, Layers, Flame, Wrench, ShieldAlert, Award, RefreshCcw, Edit, Camera } from "lucide-react";
 
 interface RollingTabProps {
   records: RollingRecord[];
@@ -28,7 +28,9 @@ interface RollingTabProps {
     repairWeight: number,
     repairPieces: number,
     vacuumWeight: number,
-    vacuumPieces: number
+    vacuumPieces: number,
+    repairImage?: string,
+    vacuumImage?: string
   ) => void;
 }
 
@@ -89,6 +91,8 @@ export const RollingTab: React.FC<RollingTabProps> = ({
   const [splitRepairPieces, setSplitRepairPieces] = useState<string>("");
   const [splitVacuumWeight, setSplitVacuumWeight] = useState<string>("");
   const [splitVacuumPieces, setSplitVacuumPieces] = useState<string>("");
+  const [splitRepairImage, setSplitRepairImage] = useState<string>("");
+  const [splitVacuumImage, setSplitVacuumImage] = useState<string>("");
 
   // Modal updates (triggered via row action buttons)
   const [updatingRecordId, setUpdatingRecordId] = useState<string | null>(null);
@@ -107,7 +111,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
 
   const handleImageFile = (
     e: React.ChangeEvent<HTMLInputElement>,
-    type: "before" | "after" | "damaged" | "afterFormImg" | "afterFormDamImg" | "modalImg" | "modalDamImg"
+    type: "before" | "after" | "damaged" | "afterFormImg" | "afterFormDamImg" | "modalImg" | "modalDamImg" | "splitRepair" | "splitVacuum"
   ) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -121,6 +125,8 @@ export const RollingTab: React.FC<RollingTabProps> = ({
         else if (type === "afterFormDamImg") setAfterFormDamagedImage(result);
         else if (type === "modalImg") setUpAfterImage(result);
         else if (type === "modalDamImg") setUpDamagedImage(result);
+        else if (type === "splitRepair") setSplitRepairImage(result);
+        else if (type === "splitVacuum") setSplitVacuumImage(result);
       };
       r.readAsDataURL(file);
     }
@@ -1565,10 +1571,14 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                       repairWNum, 
                       repairPNum, 
                       parseFloat(remainingW.toFixed(3)), 
-                      remainingP
+                      remainingP,
+                      splitRepairImage || undefined,
+                      splitVacuumImage || undefined
                     );
                   }
                   setSplitRecord(null);
+                  setSplitRepairImage("");
+                  setSplitVacuumImage("");
                 }} 
                 className="space-y-4"
               >
@@ -1611,6 +1621,29 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                       />
                     </div>
                   </div>
+
+                  {/* Attachment of repair batch image */}
+                  <div>
+                    <label className="block text-[10px] text-[#aaa] mb-1">صورة لقطع التصليح (اختياري)</label>
+                    {splitRepairImage ? (
+                      <div className="relative rounded-xl overflow-hidden border border-[#222] h-24 bg-[#141414]">
+                        <img src={splitRepairImage} alt="Repair batch" className="w-full h-full object-contain" />
+                        <button
+                          type="button"
+                          onClick={() => setSplitRepairImage("")}
+                          className="absolute top-1.5 right-1.5 p-1 bg-black/85 text-white rounded-full hover:bg-rose-950 transition-colors cursor-pointer"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center border border-dashed border-[#222] hover:border-indigo-500/40 rounded-xl p-3 text-center cursor-pointer bg-[#141414] hover:bg-[#181818] transition-colors">
+                        <Camera className="w-5 h-5 text-[#555]" />
+                        <span className="text-[10px] text-[#666] mt-1">تحديد / تصوير لقطع التصليح</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageFile(e, "splitRepair")} />
+                      </label>
+                    )}
+                  </div>
                 </div>
 
                 {/* 2. Direct Vacuum/Request Portion Card (Auto-computed) */}
@@ -1636,6 +1669,29 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                       </div>
                     </div>
                   </div>
+
+                  {/* Attachment of vacuum batch image */}
+                  <div>
+                    <label className="block text-[10px] text-[#aaa] mb-1">صورة للقطع الجاهزة للفاكيوم (اختياري)</label>
+                    {splitVacuumImage ? (
+                      <div className="relative rounded-xl overflow-hidden border border-[#222] h-24 bg-[#141414]">
+                        <img src={splitVacuumImage} alt="Vacuum batch" className="w-full h-full object-contain" />
+                        <button
+                          type="button"
+                          onClick={() => setSplitVacuumImage("")}
+                          className="absolute top-1.5 right-1.5 p-1 bg-black/85 text-white rounded-full hover:bg-rose-950 transition-colors cursor-pointer"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center border border-dashed border-[#222] hover:border-emerald-500/40 rounded-xl p-3 text-center cursor-pointer bg-[#141414] hover:bg-[#181818] transition-colors">
+                        <Camera className="w-5 h-5 text-[#555]" />
+                        <span className="text-[10px] text-[#666] mt-1">تحديد / تصوير لقطع الفاكيوم</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageFile(e, "splitVacuum")} />
+                      </label>
+                    )}
+                  </div>
                 </div>
 
                 {/* Confirm & Cancel Rows */}
@@ -1648,7 +1704,11 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSplitRecord(null)}
+                    onClick={() => {
+                      setSplitRecord(null);
+                      setSplitRepairImage("");
+                      setSplitVacuumImage("");
+                    }}
                     className="py-2.5 px-4 bg-[#1a1a1a] hover:bg-[#252525] text-[#aaa] font-bold rounded-xl text-xs border border-neutral-800 cursor-pointer"
                   >
                     تراجع
