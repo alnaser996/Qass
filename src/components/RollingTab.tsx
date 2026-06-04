@@ -931,6 +931,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                   filteredRecords.map((record) => {
                     const isPending = record.isPending;
                     const isRepair = record.stageType === "repair";
+                    const isProfit = !isPending && record.loss !== undefined && record.loss < 0;
                     const lossAbs = !isPending && record.loss !== undefined ? Math.abs(record.loss) : 0;
                     const pct = !isPending && record.weightBefore > 0 && record.loss !== undefined ? (lossAbs / record.weightBefore) * 100 : 0;
                     
@@ -1059,16 +1060,18 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                               قيد الفرز ⏳
                             </span>
                           ) : (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-950/30 text-rose-400 border border-rose-900/40">
-                              {pct.toFixed(2)}%
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isProfit ? 'bg-emerald-950/30 text-emerald-400 border border-emerald-900/40' : 'bg-rose-950/30 text-rose-400 border border-rose-900/40'}`}>
+                              {pct.toFixed(2)}% {isProfit ? "زيادة" : "نقص"}
                             </span>
                           )}
                         </td>
 
                         {/* Absolute Loss deficit */}
-                        <td className={`px-4 py-4 text-left font-mono font-bold ${isPending ? 'text-amber-500 bg-amber-950/5' : 'text-rose-400 bg-rose-950/10'}`}>
+                        <td className={`px-4 py-4 text-left font-mono font-bold ${isPending ? 'text-amber-500 bg-amber-950/5' : (isProfit ? 'text-emerald-400 bg-emerald-950/10' : 'text-rose-400 bg-rose-950/10')}`}>
                           {isPending ? (
                             <span className="text-[9px] font-sans">معلق في الأحماض</span>
+                          ) : isProfit ? (
+                            `+${lossAbs.toFixed(3)}`
                           ) : (
                             `-${lossAbs.toFixed(3)}`
                           )}
@@ -1121,10 +1124,10 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                     <td className="px-3 py-3 text-center text-[#C5A028]" colSpan={3}>المجموع الشامل</td>
                     <td className="px-3 py-3 text-[#777]">ملخص جرد غلق الفاكيوم والتفجير الدقيق</td>
                     <td className="px-3 py-3 text-center font-mono text-[#C5A028]">
-                      {((totalLoss / totalBefore) * 100).toFixed(2)}% <span className="text-[9px] text-[#666]">(عجز كلي)</span>
+                      {totalBefore > 0 ? (Math.abs(totalLoss) / totalBefore * 100).toFixed(2) : "0.00"}% <span className="text-[10px] text-[#888]">({totalLoss >= 0 ? "عجز كلي" : "وفر صافي"})</span>
                     </td>
-                    <td className="px-3 py-3 text-left font-mono text-rose-400 bg-rose-950/30">
-                      -{totalLoss.toFixed(3)} غرام
+                    <td className={`px-3 py-3 text-left font-mono ${totalLoss >= 0 ? 'text-rose-400 bg-rose-950/30' : 'text-emerald-400 bg-emerald-950/30'}`}>
+                      {totalLoss >= 0 ? `-${totalLoss.toFixed(3)}` : `+${Math.abs(totalLoss).toFixed(3)}`} غرام
                     </td>
                     <td className="px-3 py-3 text-left font-mono text-[#e0e0e0]">
                       {totalDamaged.toFixed(3)} غرام

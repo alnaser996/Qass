@@ -62,39 +62,67 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
   const [endDate, setEndDate] = useState("");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
-  // Math Calculations for General Statistics - Overridden exactly with User's requested workshop numbers
-  const totalGoldInflow = 521.600;
-  const totalNetFinishedGold = 881.150;
-  const totalAbsoluteGoldLoss = 1.800;
-  const totalRecoverableScrap = 21.200;
+  // Math Calculations for General Statistics - Fully dynamic based on all completed records
+  const totalCastingIn = castingRecords.filter(r => !r.isPending).reduce((sum, r) => sum + r.kar, 0);
+  const totalTreeIn = treeCastingRecords.filter(r => !r.isPending).reduce((sum, r) => sum + r.inputWeight, 0);
+  const totalRollingIn = rollingRecords.filter(r => !r.isPending).reduce((sum, r) => sum + r.weightBefore, 0);
+  const totalGoldInflow = totalCastingIn + totalTreeIn + totalRollingIn;
 
-  // Efficiency Percentages and custom stats as requested
-  const globalLossRate = 0.35; // 1.800g is exactly 0.35% of total inflow
-  const goldDefectAlarm = false; // "حالة الورشة مستقرة وضمن المتوقع"
+  const castingLossTotal = castingRecords.filter(r => !r.isPending).reduce((sum, r) => sum + (r.loss ?? 0), 0);
+  const treeCastingLossTotal = treeCastingRecords.filter(r => !r.isPending).reduce((sum, r) => sum + (r.loss ?? 0), 0);
+  const rollingLossTotal = rollingRecords.filter(r => !r.isPending).reduce((sum, r) => sum + (r.loss ?? 0), 0);
+  const totalAbsoluteGoldLoss = castingLossTotal + treeCastingLossTotal + rollingLossTotal;
 
-  // Exact stage loss values requested by the user
-  const castingLossTotal = 0.400; // 0.08%
-  const castingInputTotal = 500.000;
-  
-  const treeCastingLossTotal = 0.700; // 0.17%
-  const treeCastingInputTotal = 411.765;
-  
-  const rollingLossTotal = 0.700; // 0.11%
-  const rollingInputTotal = 636.364;
+  const totalTreeDamaged = treeCastingRecords.filter(r => !r.isPending).reduce((sum, r) => sum + (r.damagedWeight ?? 0), 0);
+  const totalRollingDamaged = rollingRecords.filter(r => !r.isPending).reduce((sum, r) => sum + (r.damagedWeight ?? 0), 0);
+  const totalRecoverableScrap = totalTreeDamaged + totalRollingDamaged;
 
-  const productionBeadsTotal = 498.650; // إجمالي وزن الإنتاج النهائي الجاهز والمسلم
+  const totalNetFinishedGold = productionRecords.reduce((sum, r) => sum + r.finalWeight, 0);
 
-  // Build exact required dateTimeline requested by the user:
-  // 05-09, 05-10, 05-15, 05-18, 05-22, 05-28, 05-29
-  const dateTimeline = [
-    { date: "05-09", loss: 0.05 },
-    { date: "05-10", loss: 0.70 },
-    { date: "05-15", loss: 0.35 },
-    { date: "05-18", loss: 0.20 },
-    { date: "05-22", loss: 0.15 },
-    { date: "05-28", loss: 0.05 },
-    { date: "05-29", loss: 0.30 }, // Sum matches exactly 1.800g when combined!
-  ];
+  const globalLossRate = totalGoldInflow > 0 ? (totalAbsoluteGoldLoss / totalGoldInflow) * 100 : 0;
+  const goldDefectAlarm = globalLossRate > 2.0;
+
+  // Exact stage statistics
+  const productionBeadsTotal = totalNetFinishedGold;
+
+  // Compile full dynamic date timeline
+  // Group all daily operations by date
+  const dateTimeline = React.useMemo(() => {
+    const dailyMap: { [key: string]: number } = {};
+    
+    // Sum casting losses
+    castingRecords.filter(r => !r.isPending).forEach(r => {
+      const day = r.date.substring(5); // e.g., "05-09"
+      if (day) dailyMap[day] = (dailyMap[day] || 0) + (r.loss ?? 0);
+    });
+
+    // Sum tree losses
+    treeCastingRecords.filter(r => !r.isPending).forEach(r => {
+      const day = r.date.substring(5);
+      if (day) dailyMap[day] = (dailyMap[day] || 0) + (r.loss ?? 0);
+    });
+
+    // Sum rolling losses
+    rollingRecords.filter(r => !r.isPending).forEach(r => {
+      const day = r.date.substring(5);
+      if (day) dailyMap[day] = (dailyMap[day] || 0) + (r.loss ?? 0);
+    });
+
+    const entries = Object.entries(dailyMap).map(([date, loss]) => ({ date, loss }));
+    if (entries.length < 2) {
+      // Fallback seed timeline if there are not enough entries to render a path
+      return [
+        { date: "05-09", loss: 0.05 },
+        { date: "05-10", loss: 0.70 },
+        { date: "05-15", loss: 0.35 },
+        { date: "05-18", loss: 0.20 },
+        { date: "05-22", loss: 0.15 },
+        { date: "05-28", loss: 0.05 },
+        { date: "05-29", loss: 0.30 },
+      ];
+    }
+    return entries.sort((a, b) => a.date.localeCompare(b.date));
+  }, [castingRecords, treeCastingRecords, rollingRecords]);
 
   // Custom Inline SVG Sparkline/Graph renderer
   const renderTrendCanvas = () => {
@@ -112,11 +140,16 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
     const width = 500;
     const height = 180;
     const padding = 25;
-    const maxLoss = 0.84; // Peak level specified by user
+
+    // Support both positive (deficit) and negative (surplus) losses elegantly
+    const minLossInTimeline = Math.min(...dateTimeline.map(item => item.loss), 0);
+    const maxLossInTimeline = Math.max(...dateTimeline.map(item => item.loss), 0.1);
+    const timelineRange = (maxLossInTimeline - minLossInTimeline) || 0.1;
 
     const points = dateTimeline.map((item, index) => {
       const x = padding + (index / (dateTimeline.length - 1)) * (width - padding * 2);
-      const y = height - padding - (item.loss / maxLoss) * (height - padding * 2);
+      const ratio = (item.loss - minLossInTimeline) / timelineRange;
+      const y = height - padding - ratio * (height - padding * 2);
       return { x, y, date: item.date, loss: item.loss };
     });
 
@@ -126,18 +159,18 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
       pathD += ` L ${points[i].x} ${points[i].y}`;
     }
 
-    // Grid lines precisely mapping to 0.84g, 0.56g, 0.28g, 0.00g
+    // Grid lines precisely mapping to dynamic ranges
     const gridLines = [
-      { label: "0.84g", y: padding },
-      { label: "0.56g", y: padding + (1/3) * (height - padding * 2) },
-      { label: "0.28g", y: padding + (2/3) * (height - padding * 2) },
-      { label: "0.00g", y: height - padding },
+      { label: `${maxLossInTimeline.toFixed(2)}g`, y: padding },
+      { label: `${(minLossInTimeline + timelineRange * 2 / 3).toFixed(2)}g`, y: padding + (1 / 3) * (height - padding * 2) },
+      { label: `${(minLossInTimeline + timelineRange * 1 / 3).toFixed(2)}g`, y: padding + (2 / 3) * (height - padding * 2) },
+      { label: `${minLossInTimeline.toFixed(2)}g`, y: height - padding },
     ];
 
     return (
       <div className="relative">
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-black rounded-xl overflow-hidden shadow-inner border border-[#2a2a2a]">
-          {/* Grid lines with precise user-specified values */}
+          {/* Grid lines with precise dynamic values */}
           {gridLines.map((line, idx) => (
             <g key={idx}>
               <line
@@ -200,7 +233,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
 
           {/* Timeline Dates label at bottom */}
           {points.map((pt, i) => {
-            const shortDate = pt.date; // Use "05-09" directly as it is already short formatted in dateTimeline
+            const shortDate = pt.date;
             return (
               <text
                 key={i}
@@ -236,8 +269,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             }}
           >
             <div className="font-semibold text-amber-400">التاريخ: 2026-{hoveredPoint.label}</div>
-            <div className="text-[10px] text-slate-300 font-mono">
-              إجمالي عجز النقص: {hoveredPoint.val.toFixed(3)} غرام
+            <div className="text-[10px] text-slate-300 font-sans">
+              {hoveredPoint.val >= 0 ? "عجز النقصان" : "وفر الزيادة"}: <span className="font-mono">{Math.abs(hoveredPoint.val).toFixed(3)}g</span>
             </div>
           </div>
         )}
@@ -362,6 +395,109 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             <Printer className="w-4 h-4 stroke-[2]" />
             <span>معاينة وطباعة التقرير الشامل (PDF)</span>
           </button>
+        </div>
+      </div>
+
+      {/* Dynamic Gold Balance KPIs Dashboard & Sparkline Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 no-print">
+        {/* KPI Widgets */}
+        <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Card 1: Bulk raw gold inflow */}
+          <div className="bg-[#0f0f0f] p-5 rounded-2xl border border-neutral-800 flex flex-col justify-between relative overflow-hidden group hover:border-[#C5A028]/40 transition-all">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-amber-500/5 to-transparent rounded-bl-full pointer-events-none" />
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-neutral-400 block">إجمالي كسر الذهب المدخل (الخام)</span>
+              <span className="text-2xl font-black text-amber-500 font-mono tracking-tight block">
+                {totalGoldInflow.toFixed(3)} <span className="text-xs font-sans font-normal text-neutral-400">غرام</span>
+              </span>
+            </div>
+            <p className="text-[10px] text-neutral-500 mt-3 font-sans leading-relaxed">
+              يمثل الوزن الإجمالي التراكمي لسبائك الكسر المصبوبة والمعدن الداخل لجميع الوجبات قبل البدء بالتصفية.
+            </p>
+          </div>
+
+          {/* Card 2: Final finished gold output */}
+          <div className="bg-[#0f0f0f] p-5 rounded-2xl border border-neutral-800 flex flex-col justify-between relative overflow-hidden group hover:border-emerald-500/40 transition-all">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-bl-full pointer-events-none" />
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-neutral-400 block">الإنتاج النهائي الجاهز والمسلم</span>
+              <span className="text-2xl font-black text-emerald-400 font-mono tracking-tight block">
+                {totalNetFinishedGold.toFixed(3)} <span className="text-xs font-sans font-normal text-neutral-400">غرام</span>
+              </span>
+            </div>
+            <p className="text-[10px] text-neutral-500 mt-3 font-sans leading-relaxed">
+              الوزن النهائي والكامل للمصوغات والمشغولات الصالحة والمسلمة للمخازن والمعارض عيار ٢١ المعتمد.
+            </p>
+          </div>
+
+          {/* Card 3: Recoverable Scrap gold */}
+          <div className="bg-[#0f0f0f] p-5 rounded-2xl border border-neutral-800 flex flex-col justify-between relative overflow-hidden group hover:border-yellow-600/40 transition-all">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-yellow-500/5 to-transparent rounded-bl-full pointer-events-none" />
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-neutral-400 block">التالف والريزة (الخردة المستردة)</span>
+              <span className="text-2xl font-black text-[#C5A028] font-mono tracking-tight block">
+                {totalRecoverableScrap.toFixed(3)} <span className="text-xs font-sans font-normal text-neutral-400">غرام</span>
+              </span>
+            </div>
+            <p className="text-[10px] text-neutral-500 mt-3 font-sans leading-relaxed">
+              المعدن المسترجع كقصاصات وريزة وقطع تالفة من أشجار الصب والدرفلة والمطحنة القابلة لإعادة الصهر والسبك.
+            </p>
+          </div>
+
+          {/* Card 4: Net Surplus or Deficit (الزيادة أو النقصان الكلي) -> Centered and colored based on state */}
+          {totalAbsoluteGoldLoss >= 0 ? (
+            <div className="bg-[#1b0c0f] p-5 rounded-2xl border border-rose-950/50 flex flex-col justify-between relative overflow-hidden group hover:border-rose-800/60 shadow-[0_4px_25px_rgba(244,63,94,0.05)] transition-all animate-fadeIn">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-rose-500/10 to-transparent rounded-bl-full pointer-events-none" />
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                  <span className="text-[11px] font-bold text-rose-300 block">مجمل النقيصة والعجز الكلي في العمل</span>
+                </div>
+                <span className="text-2xl font-black text-rose-400 font-mono tracking-tight block">
+                  -{totalAbsoluteGoldLoss.toFixed(3)} <span className="text-xs font-sans font-normal text-rose-300/75">غرام</span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between mt-3 text-[10px] text-rose-400 border-t border-rose-950/40 pt-2.5">
+                <span>نسبة العجز التراكمي للذهب:</span>
+                <span className="font-mono font-bold bg-rose-500/10 px-1.5 py-0.5 rounded border border-[#ef4444]/20">{globalLossRate.toFixed(3)}%</span>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-[#0a1c12] p-5 rounded-2xl border border-emerald-950/50 flex flex-col justify-between relative overflow-hidden group hover:border-emerald-800/60 shadow-[0_4px_25px_rgba(16,185,129,0.05)] transition-all animate-fadeIn">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-emerald-500/10 to-transparent rounded-bl-full pointer-events-none" />
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-[11px] font-bold text-emerald-300 block">إجمالي الوفر والزيادة المحققة</span>
+                </div>
+                <span className="text-2xl font-black text-emerald-400 font-mono tracking-tight block">
+                  +{Math.abs(totalAbsoluteGoldLoss).toFixed(3)} <span className="text-xs font-sans font-normal text-emerald-300/75">غرام</span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between mt-3 text-[10px] text-emerald-400 border-t border-emerald-950/40 pt-2.5">
+                <span>نسبة الوفر والتسامح الصافي:</span>
+                <span className="font-mono font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-[#10b981]/20">+{Math.abs(globalLossRate).toFixed(3)}%</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sparkline Graph Chart */}
+        <div className="lg:col-span-5 bg-[#0f0f0f] border border-neutral-800 rounded-2xl p-4 flex flex-col justify-between">
+          <div className="border-b border-neutral-800/80 pb-2 mb-3">
+            <h5 className="text-xs font-extrabold text-white flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <span>منحنى تتبع جرد النقيصة وتذبذب السبيكة اليومي</span>
+            </h5>
+            <p className="text-[9px] text-[#777] mt-0.5 leading-relaxed">
+              يعرض مسار صهر وسحب وتصفية الفاقد بالتاريخ (مرر المؤشر فوق النقاط لعرض القيم بدقة)
+            </p>
+          </div>
+          <div className="flex-grow flex items-center justify-center">
+            <div className="w-full">
+              {renderTrendCanvas()}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -711,69 +847,47 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-250 text-neutral-700">
-                    <tr>
-                      <td className="px-3 py-2.5 text-center font-mono">2026-05-09</td>
-                      <td className="px-3 py-2.5 font-semibold">سبك وصهر كسر عيار ٢١ بكر</td>
-                      <td className="px-3 py-2.5 text-left font-mono">100.000</td>
-                      <td className="px-3 py-2.5 text-left font-mono">99.950</td>
-                      <td className="px-3 py-2.5 text-left font-mono">0.000</td>
-                      <td className="px-3 py-2.5 text-left font-mono text-rose-600 font-sans font-bold">0.050 غ</td>
-                      <td className="px-3 py-2.5 text-center text-emerald-700 font-bold">مستقر تبارك الله</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2.5 text-center font-mono">2026-05-10</td>
-                      <td className="px-3 py-2.5 font-semibold">صب شجرة الأقراط والأساور الفاكيوم</td>
-                      <td className="px-3 py-2.5 text-left font-mono">200.000</td>
-                      <td className="px-3 py-2.5 text-left font-mono">199.300</td>
-                      <td className="px-3 py-2.5 text-left font-mono">0.000</td>
-                      <td className="px-3 py-2.5 text-left font-mono text-rose-600 font-sans font-bold">0.700 غ</td>
-                      <td className="px-3 py-2.5 text-center text-amber-700 font-bold">عجز طبيعي مسموح</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2.5 text-center font-mono">2026-05-15</td>
-                      <td className="px-3 py-2.5 font-semibold">درفلة شريط ذهب وتفجير الفضة</td>
-                      <td className="px-3 py-2.5 text-left font-mono">150.000</td>
-                      <td className="px-3 py-2.5 text-left font-mono">149.650</td>
-                      <td className="px-3 py-2.5 text-left font-mono">0.000</td>
-                      <td className="px-3 py-2.5 text-left font-mono text-rose-600 font-sans font-bold">0.350 غ</td>
-                      <td className="px-3 py-2.5 text-center text-emerald-700 font-bold">مستقر تبارك الله</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2.5 text-center font-mono">2026-05-18</td>
-                      <td className="px-3 py-2.5 font-semibold">صياغة حبات الدبل والأزرار المسلمة</td>
-                      <td className="px-3 py-2.5 text-left font-mono">120.000</td>
-                      <td className="px-3 py-2.5 text-left font-mono">119.800</td>
-                      <td className="px-3 py-2.5 text-left font-mono">0.000</td>
-                      <td className="px-3 py-2.5 text-left font-mono text-rose-600 font-sans font-bold">0.200 غ</td>
-                      <td className="px-3 py-2.5 text-center text-amber-700 font-bold">عجز طبيعي مسموح</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2.5 text-center font-mono">2026-05-22</td>
-                      <td className="px-3 py-2.5 font-semibold">تسوية يد وتصليح اللحام شمعة</td>
-                      <td className="px-3 py-2.5 text-left font-mono">80.000</td>
-                      <td className="px-3 py-2.5 text-left font-mono">79.850</td>
-                      <td className="px-3 py-2.5 text-left font-mono">0.000</td>
-                      <td className="px-3 py-2.5 text-left font-mono text-rose-600 font-sans font-bold">0.150 غ</td>
-                      <td className="px-3 py-2.5 text-center text-emerald-700 font-bold">مستقر تبارك الله</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2.5 text-center font-mono">2026-05-28</td>
-                      <td className="px-3 py-2.5 font-semibold">دورة صهر بوطة الكسر الأولية</td>
-                      <td className="px-3 py-2.5 text-left font-mono">50.000</td>
-                      <td className="px-3 py-2.5 text-left font-mono">49.950</td>
-                      <td className="px-3 py-2.5 text-left font-mono">0.000</td>
-                      <td className="px-3 py-2.5 text-left font-mono text-rose-600 font-sans font-bold">0.050 غ</td>
-                      <td className="px-3 py-2.5 text-center text-emerald-700 font-bold">ممتاز آمن للغاية</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2.5 text-center font-mono">2026-05-29</td>
-                      <td className="px-3 py-2.5 font-semibold">تسليم المشغولات والإنتاج الكامل النهائي</td>
-                      <td className="px-3 py-2.5 text-left font-mono">110.000</td>
-                      <td className="px-3 py-2.5 text-left font-mono">109.700</td>
-                      <td className="px-3 py-2.5 text-left font-mono">0.000</td>
-                      <td className="px-3 py-2.5 text-left font-mono text-rose-600 font-sans font-bold">0.300 غ</td>
-                      <td className="px-3 py-2.5 text-center text-amber-700 font-bold">عجز طبيعي مسموح</td>
-                    </tr>
+                    {filteredOperations.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-3 py-6 text-center text-neutral-400">
+                          لا توجد عمليات مطابقة للفلاتر المحددة حالياً.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredOperations.map((op) => {
+                        const isProfit = op.loss < 0;
+                        const absLoss = Math.abs(op.loss);
+                        const lossPct = op.weightBefore > 0 ? (absLoss / op.weightBefore) * 100 : 0;
+                        
+                        // Dynamic Technical Rating label
+                        let ratingText = "مستقر تبارك الله";
+                        let ratingColor = "text-emerald-700";
+                        if (isProfit) {
+                          ratingText = "وفر وزيادة صافية (+)";
+                          ratingColor = "text-teal-750";
+                        } else if (lossPct > 1.0) {
+                          ratingText = "تنظيف الأواني مطلوب ⚠️";
+                          ratingColor = "text-destructive font-extrabold";
+                        } else if (lossPct > 0.3) {
+                          ratingText = "عجز طبيعي مسموح";
+                          ratingColor = "text-amber-700";
+                        }
+
+                        return (
+                          <tr key={op.id}>
+                            <td className="px-3 py-2.5 text-center font-mono">{op.date}</td>
+                            <td className="px-3 py-2.5 font-semibold text-neutral-800">{op.typeName}</td>
+                            <td className="px-3 py-2.5 text-left font-mono">{op.weightBefore.toFixed(3)}</td>
+                            <td className="px-3 py-2.5 text-left font-mono">{op.weightAfter.toFixed(3)}</td>
+                            <td className="px-3 py-2.5 text-left font-mono">{op.damagedWeight > 0 ? op.damagedWeight.toFixed(3) : "0.000"}</td>
+                            <td className={`px-3 py-2.5 text-left font-mono font-bold ${isProfit ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {isProfit ? `+${absLoss.toFixed(3)}` : `-${absLoss.toFixed(3)}`} غ
+                            </td>
+                            <td className={`px-3 py-2.5 text-center font-bold ${ratingColor}`}>{ratingText}</td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
