@@ -252,7 +252,7 @@ export default function App() {
     saveToStorage("gold_loss_casting", updated);
   };
 
-  const handleUpdateCasting = (id: string, sabba: number, notes?: string) => {
+  const handleUpdateCasting = (id: string, sabba: number, notes?: string, afterImage?: string) => {
     const updated = castingRecords.map((r) => {
       if (r.id === id) {
         return {
@@ -261,6 +261,7 @@ export default function App() {
           loss: r.kar - sabba,
           isPending: false,
           notes: notes !== undefined ? notes : r.notes,
+          afterImage: afterImage || r.afterImage,
         };
       }
       return r;
@@ -298,7 +299,8 @@ export default function App() {
     damagedDetails: string,
     notes?: string,
     productionImage?: string,
-    damagedImage?: string
+    damagedImage?: string,
+    afterImage?: string
   ) => {
     const updated = treeCastingRecords.map((r) => {
       if (r.id === id) {
@@ -315,6 +317,7 @@ export default function App() {
           notes: notes !== undefined ? notes : r.notes,
           productionImage: productionImage || r.productionImage,
           damagedImage: damagedImage || r.damagedImage,
+          afterImage: afterImage || productionImage || r.afterImage || r.productionImage,
         };
       }
       return r;
@@ -350,7 +353,8 @@ export default function App() {
     details?: string,
     notes?: string,
     image?: string,
-    damagedImage?: string
+    damagedImage?: string,
+    afterImage?: string
   ) => {
     const updated = rollingRecords.map((r) => {
       if (r.id === id) {
@@ -365,6 +369,7 @@ export default function App() {
           notes: notes !== undefined ? notes : r.notes,
           image: image || r.image,
           damagedImage: damagedImage || r.damagedImage,
+          afterImage: afterImage || image || r.afterImage || r.image,
         };
       }
       return r;

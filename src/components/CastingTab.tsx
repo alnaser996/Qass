@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { CastingRecord } from "../types";
-import { FilePlus2, Trash2, Calendar, Scale, Hammer, Search, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { FilePlus2, Trash2, Calendar, Scale, Hammer, Search, Clock, CheckCircle2, AlertCircle, Eye, EyeOff, UploadCloud, XCircle } from "lucide-react";
 
 interface CastingTabProps {
   records: CastingRecord[];
   onAddRecord: (record: Omit<CastingRecord, "id" | "loss"> & { isPending?: boolean }) => void;
   onDeleteRecord: (id: string) => void;
-  onUpdateRecord: (id: string, sabba: number, notes?: string) => void;
+  onUpdateRecord: (id: string, sabba: number, notes?: string, afterImage?: string) => void;
 }
 
 export const CastingTab: React.FC<CastingTabProps> = ({
@@ -15,6 +15,10 @@ export const CastingTab: React.FC<CastingTabProps> = ({
   onDeleteRecord,
   onUpdateRecord,
 }) => {
+  // Current registration steps inside form panel
+  const [formMode, setFormMode] = useState<"before" | "after" | "both">("before");
+  
+  // Before Inputs
   const [date, setDate] = useState<string>(new Date().toISOString().substring(0, 10));
   const [time, setTime] = useState<string>(() => {
     const now = new Date();
@@ -23,30 +27,55 @@ export const CastingTab: React.FC<CastingTabProps> = ({
     return `${hours}:${minutes}`;
   });
   const [kar, setKar] = useState<string>("");
-  const [sabba, setSabba] = useState<string>("");
+  const [beforeImage, setBeforeImage] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
-  const [isPendingRecord, setIsPendingRecord] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Modal / Update State
+  // Both Inputs (only active in 'both' mode)
+  const [sabba, setSabba] = useState<string>("");
+  const [afterImage, setAfterImage] = useState<string>("");
+
+  // Standalone 'after' mode state (for direct form updates)
+  const [selectedPendingId, setSelectedPendingId] = useState<string>("");
+  const [afterFormSabba, setAfterFormSabba] = useState<string>("");
+  const [afterFormImage, setAfterFormImage] = useState<string>("");
+  const [afterFormNotes, setAfterFormNotes] = useState<string>("");
+
+  // Global UI
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
+
+  // Modal / Update State (from row click)
   const [updatingRecordId, setUpdatingRecordId] = useState<string | null>(null);
   const [updatingSabba, setUpdatingSabba] = useState<string>("");
   const [updatingNotes, setUpdatingNotes] = useState<string>("");
+  const [updatingAfterImage, setUpdatingAfterImage] = useState<string>("");
 
-  // Input calculations
+  // Parsed weights
   const parsedKar = parseFloat(kar) || 0;
   const parsedSabba = parseFloat(sabba) || 0;
-  const computedLoss = parsedKar - parsedSabba; // positive is loss/deficit, negative is surplus/increase
+  const computedLoss = parsedKar - parsedSabba;
   const computedLossPercent = parsedKar > 0 ? (Math.abs(computedLoss) / parsedKar) * 100 : 0;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Handle Image Conversion
+  const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>, type: "before" | "after" | "afterForm" | "updatingAfter") => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const r = new FileReader();
+      r.onloadend = () => {
+        const result = r.result as string;
+        if (type === "before") setBeforeImage(result);
+        else if (type === "after") setAfterImage(result);
+        else if (type === "afterForm") setAfterFormImage(result);
+        else if (type === "updatingAfter") setUpdatingAfterImage(result);
+      };
+      r.readAsDataURL(file);
+    }
+  };
+
+  const handleBeforeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (parsedKar <= 0) {
       alert("الرجاء إدخال وزن الكسر (القبل) بشكل صحيح");
-      return;
-    }
-    if (!isPendingRecord && parsedSabba <= 0) {
-      alert("الرجاء إدخال وزن الصبة الناتجة (البعد) بشكل صحيح، أو اختر خيار تسجيل القبل فقط");
       return;
     }
 
@@ -54,26 +83,78 @@ export const CastingTab: React.FC<CastingTabProps> = ({
       date,
       time,
       kar: parsedKar,
-      sabba: isPendingRecord ? undefined : parsedSabba,
+      sabba: undefined,
       notes: notes.trim(),
-      isPending: isPendingRecord,
+      isPending: true,
+      beforeImage,
+      afterImage: undefined,
+    });
+
+    setKar("");
+    setBeforeImage("");
+    setNotes("");
+    
+    // Switch to step 2 automatically if there are pending items to encourage completion
+    setFormMode("after");
+  };
+
+  const handleBothSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (parsedKar <= 0) {
+      alert("الرجاء إدخال وزن الكسر (القبل) بشكل صحيح");
+      return;
+    }
+    if (parsedSabba <= 0) {
+      alert("الرجاء إدخال وزن الصبة الناتجة (البعد)");
+      return;
+    }
+
+    onAddRecord({
+      date,
+      time,
+      kar: parsedKar,
+      sabba: parsedSabba,
+      notes: notes.trim(),
+      isPending: false,
+      beforeImage,
+      afterImage,
     });
 
     setKar("");
     setSabba("");
+    setBeforeImage("");
+    setAfterImage("");
     setNotes("");
-    
-    // Reset time to current
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    setTime(`${hours}:${minutes}`);
   };
 
+  // Standalone 'after' form submission
+  const handleStandaloneAfterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsedUpSabba = parseFloat(afterFormSabba) || 0;
+    if (!selectedPendingId) {
+      alert("الرجاء تحديد العملية المعلقة لإكمالها");
+      return;
+    }
+    if (parsedUpSabba <= 0) {
+      alert("الرجاء إدخال وزن الصبة الناتجة (الوزن بعد الصهر)");
+      return;
+    }
+
+    onUpdateRecord(selectedPendingId, parsedUpSabba, afterFormNotes.trim(), afterFormImage);
+    
+    setSelectedPendingId("");
+    setAfterFormSabba("");
+    setAfterFormImage("");
+    setAfterFormNotes("");
+    alert("تم استلام الصبة وحساب نقيصة الصهر بنجاح!");
+  };
+
+  // Row update triggers
   const handleOpenUpdate = (record: CastingRecord) => {
     setUpdatingRecordId(record.id);
     setUpdatingSabba("");
     setUpdatingNotes(record.notes || "");
+    setUpdatingAfterImage("");
   };
 
   const handleSaveUpdate = (e: React.FormEvent) => {
@@ -84,14 +165,18 @@ export const CastingTab: React.FC<CastingTabProps> = ({
       return;
     }
     if (updatingRecordId) {
-      onUpdateRecord(updatingRecordId, parsedUpSabba, updatingNotes.trim());
+      onUpdateRecord(updatingRecordId, parsedUpSabba, updatingNotes.trim(), updatingAfterImage);
       setUpdatingRecordId(null);
       setUpdatingSabba("");
       setUpdatingNotes("");
+      setUpdatingAfterImage("");
     }
   };
 
-  // Filter records
+  // Pending records list for dropdown
+  const pendingRecords = records.filter((r) => r.isPending);
+
+  // Filters
   const filteredRecords = records.filter((r) => {
     if (!searchQuery) return true;
     return (
@@ -100,118 +185,331 @@ export const CastingTab: React.FC<CastingTabProps> = ({
     );
   });
 
-  // Sum Totals exactly for completed ones
+  // Aggregated Sum totals
   const completedRecords = records.filter(r => !r.isPending);
   const totalKar = records.reduce((sum, r) => sum + r.kar, 0);
   const totalSabba = completedRecords.reduce((sum, r) => sum + (r.sabba ?? 0), 0);
   const totalLoss = completedRecords.reduce((sum, r) => sum + (r.loss ?? 0), 0);
   const completedKarSum = completedRecords.reduce((sum, r) => sum + r.kar, 0);
-  const averageLossPercent = completedKarSum > 0 ? (totalLoss / completedKarSum) * 100 : 0;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-      {/* Input Form Column */}
-      <div className="md:col-span-5 lg:col-span-4 space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* Registration Column */}
+      <div className="lg:col-span-5 xl:col-span-4 space-y-6">
         <div className="bg-[#0f0f0f] rounded-2xl border border-[#222] p-6 shadow-2xl hover:border-[#333] transition-all relative overflow-hidden">
-          {/* Subtle top decoration */}
           <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#C5A028] to-transparent opacity-60" />
           
-          <div className="flex items-center gap-3 border-b border-[#222] pb-4 mb-5">
+          <div className="flex items-center gap-3 border-b border-[#222] pb-4 mb-4">
             <div className="p-3 bg-gradient-to-br from-[#d4af37]/20 to-transparent rounded-xl text-[#C5A028] border border-[#d4af37]/10">
               <Hammer className="w-5 h-5 stroke-[2]" />
             </div>
             <div>
-              <h2 className="text-md font-bold text-white font-sans">تسجيل عملية سبك وصهر جديدة</h2>
-              <p className="text-[11px] text-[#888] font-sans mt-0.5">تحديد عجز/نقص أو زيادة صب سبيكة الذهب (الصبة)</p>
+              <h2 className="text-md font-bold text-white font-sans">تسجيل صهر وصب السبيكة</h2>
+              <p className="text-[11px] text-[#888] font-sans mt-0.5">تسجيل وجذاذات الأوزان ومقارنة صور القبل والبعد</p>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-             {/* Date & Time */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 text-[#888]" /> التاريخ
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] focus:ring-1 focus:ring-[#C5A028] focus:bg-[#070707] focus:outline-none transition-all duration-200 font-mono text-right"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-[#888]" /> الوقت
-                </label>
-                <input
-                  type="time"
-                  required
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] focus:ring-1 focus:ring-[#C5A028] focus:bg-[#070707] focus:outline-none transition-all duration-200 font-mono text-right"
-                />
-              </div>
-            </div>
+          {/* Stepper Navigation bar for القبل / البعد / المباشر */}
+          <div className="bg-[#141414] p-1 rounded-xl border border-[#222] flex gap-1 mb-5">
+            <button
+              type="button"
+              onClick={() => setFormMode("before")}
+              className={`flex-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                formMode === "before"
+                  ? "bg-[#C5A028] text-neutral-950 font-black shadow-md"
+                  : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+              }`}
+            >
+              ١. تسجيل (القبل) ⏳
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormMode("after")}
+              className={`flex-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                formMode === "after"
+                  ? "bg-amber-500/20 text-[#C5A028] border border-amber-500/30 font-black shadow-md"
+                  : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+              }`}
+            >
+              ٢. استلام (البعد) ⚖️
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormMode("both")}
+              className={`flex-1 py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                formMode === "both"
+                  ? "bg-neutral-800 text-white border border-[#333] font-black"
+                  : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+              }`}
+            >
+              ترحيل كامل ✍️
+            </button>
+          </div>
 
-             {/* Mode Selector for Before & After */}
-            <div className="bg-[#141414] p-1.5 rounded-xl border border-[#222] flex gap-1.5 mb-2">
+          {/* MODE 1: BEFORE FORM */}
+          {formMode === "before" && (
+            <form onSubmit={handleBeforeSubmit} className="space-y-4 animate-fadeIn">
+              <div className="bg-amber-500/5 border border-amber-500/10 p-3 rounded-lg text-[11px] text-amber-500 mb-1 leading-relaxed">
+                📢 <strong>تسجيل القبل:</strong> استخدم هذا القسم لتوثيق كمية الذهب الكسر المستلمة مع الصورة قبل وضعها في الفرن للصهر.
+              </div>
+
+              {/* Date & Time */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1">التاريخ</label>
+                  <input
+                    type="date"
+                    required
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-2.5 py-2 text-xs font-mono text-right focus:border-[#C5A028] outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1">الوقت</label>
+                  <input
+                    type="time"
+                    required
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-2.5 py-2 text-xs font-mono text-right focus:border-[#C5A028] outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Input weight */}
+              <div>
+                <label className="block text-xs font-bold text-[#e0e0e0] mb-1 flex justify-between">
+                  <span>استلام الكسر (خام صهر عيار ٢١)</span>
+                  <span className="text-[10px] text-[#C5A028]">القبل</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.001"
+                    required
+                    placeholder="0.000"
+                    value={kar}
+                    onChange={(e) => setKar(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl pl-12 pr-4 py-2 text-sm text-left font-mono focus:border-[#C5A028] outline-none"
+                  />
+                  <span className="absolute left-3 top-2.5 text-[11px] text-[#555] font-bold">غرام</span>
+                </div>
+              </div>
+
+              {/* Before Image Upload */}
+              <div>
+                <label className="block text-[11px] font-semibold text-[#aaa] mb-1">صورة الذهب/الكسر قبل الصهر</label>
+                {beforeImage ? (
+                  <div className="relative border border-[#222] rounded-xl overflow-hidden aspect-video bg-black flex items-center justify-center">
+                    <img src={beforeImage} alt="القبل" className="w-full h-full object-contain" />
+                    <button
+                      type="button"
+                      onClick={() => setBeforeImage("")}
+                      className="absolute top-1 right-1 p-1 bg-black/80 hover:bg-rose-950 text-white rounded-full"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center border border-dashed border-[#222] hover:border-[#C5A028]/35 rounded-xl p-4 text-center cursor-pointer bg-[#141414] transition-colors">
+                    <UploadCloud className="w-6 h-6 text-[#555]" />
+                    <span className="text-xs text-[#666] mt-1.5 font-sans">اسحب أو اضغط لرفع صورة القبل</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleImageFile(e, "before")}
+                    />
+                  </label>
+                )}
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-[11px] text-[#aaa] mb-1">بيانات الوجبة أو عهدة الصائغ</label>
+                <textarea
+                  rows={2}
+                  placeholder="مثال: ذهب كسر عيار 21 تسليم ورشة أبو علي..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] outline-none resize-none"
+                />
+              </div>
+
               <button
-                type="button"
-                onClick={() => setIsPendingRecord(false)}
-                className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
-                  !isPendingRecord
-                    ? "bg-[#C5A028] text-neutral-950 shadow-sm"
-                    : "text-neutral-400 hover:text-white hover:bg-neutral-900"
-                }`}
+                type="submit"
+                className="w-full bg-[#C5A028] hover:bg-[#d9b132] text-neutral-950 font-bold py-2.5 px-4 rounded-xl transition-all cursor-pointer shadow-lg flex items-center justify-center gap-2"
               >
-                العملية كاملة (قبل + بعد)
+                <FilePlus2 className="w-4 h-4" />
+                <span>ترحيل وجدولة الصهر ⏳</span>
               </button>
-              <button
-                type="button"
-                onClick={() => setIsPendingRecord(true)}
-                className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
-                  isPendingRecord
-                    ? "bg-amber-500/20 text-[#C5A028] border border-amber-500/30 font-extrabold"
-                    : "text-neutral-400 hover:text-white hover:bg-neutral-900"
-                }`}
-              >
-                تسجيل القبل فقط ⏳
-              </button>
-            </div>
+            </form>
+          )}
 
-            {/* Kar weight */}
-            <div>
-              <label className="block text-xs font-semibold text-[#aaa] mb-1.5 flex justify-between items-center">
-                <span className="flex items-center gap-1.5">
-                  <Scale className="w-4 h-4 text-[#888]" /> استلام كسر (خام عيار ٢١)
-                </span>
-                <span className="text-[10px] bg-[#C5A028]/10 text-[#C5A028] px-2 py-0.5 rounded font-bold">قبل الصهر</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  step="0.001"
-                  required
-                  placeholder="0.000"
-                  value={kar}
-                  onChange={(e) => setKar(e.target.value)}
-                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl pl-14 pr-4 py-2.5 text-sm text-left font-mono focus:border-[#C5A028] focus:ring-1 focus:ring-[#C5A028] focus:bg-[#070707] focus:outline-none transition-all duration-200"
-                />
-                <span className="absolute left-4 top-3 text-xs text-[#666] font-semibold">غرام</span>
+          {/* MODE 2: STANDALONE AFTER FORM */}
+          {formMode === "after" && (
+            <form onSubmit={handleStandaloneAfterSubmit} className="space-y-4 animate-fadeIn">
+              <div className="bg-emerald-500/5 border border-emerald-500/10 p-3 rounded-lg text-[11px] text-emerald-400 mb-1 leading-relaxed">
+                ⚖️ <strong>إكمال البعد:</strong> اختر من الصبات المعلقة (المطبوخة في الفرن حالياً) لتسجيل وتأكيد وزن السبيكة المنتجة بعد الصهر وحساب النقيصة فوراً.
               </div>
-            </div>
 
-            {/* Ingot weight */}
-            {!isPendingRecord ? (
+              {/* Selection Dropdown of Pending Castings */}
               <div>
-                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 flex justify-between items-center">
-                  <span className="flex items-center gap-1.5">
-                    <Scale className="w-4 h-4 text-[#888]" /> وزن الذهب الخارج بعد الصهر (الصبة)
-                  </span>
-                  <span className="text-[10px] bg-emerald-950/40 text-emerald-400 px-2 py-0.5 rounded font-bold">بعد الصهر والصب</span>
-                </label>
+                <label className="block text-xs font-bold text-[#e0e0e0] mb-1">اختر العملية المعلقة (قيد الصهر):</label>
+                {pendingRecords.length === 0 ? (
+                  <div className="bg-[#141414] border border-dashed border-[#222] text-center p-6 rounded-xl text-[#555] text-xs">
+                    لا توجد صبات جارية بانتظار التصفية حالياً. ابدأ بتوثيق الصهر في صفحة "القبل"!
+                  </div>
+                ) : (
+                  <select
+                    required
+                    value={selectedPendingId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setSelectedPendingId(id);
+                      const rec = records.find(r => r.id === id);
+                      if (rec) {
+                        setAfterFormNotes(rec.notes || "");
+                      }
+                    }}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] outline-none"
+                  >
+                    <option value="">-- حدد الوجبة المعلقة من الدفتر --</option>
+                    {pendingRecords.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        مستلم كسر: {r.kar.toFixed(3)}g | تاريخ: {r.date} ({r.time || ""})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {selectedPendingId && (
+                <>
+                  {/* Weight After */}
+                  <div>
+                    <label className="block text-xs font-bold text-emerald-400 mb-1 flex justify-between">
+                      <span>وزن السبيكة الواصلة (الصبة)</span>
+                      <span className="text-[10px] text-[#C5A028]">البعد</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.001"
+                        required
+                        placeholder="0.000"
+                        value={afterFormSabba}
+                        onChange={(e) => setAfterFormSabba(e.target.value)}
+                        className="w-full text-white bg-[#141414] border border-emerald-950 rounded-xl pl-12 pr-4 py-2 text-sm text-left font-mono focus:border-[#C5A028] outline-none"
+                      />
+                      <span className="absolute left-3 top-2.5 text-[11px] text-emerald-500 font-bold">غرام</span>
+                    </div>
+                  </div>
+
+                  {/* After Image Upload */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[#aaa] mb-1">صورة الصبة المنتجة/سبيكة الذهب</label>
+                    {afterFormImage ? (
+                      <div className="relative border border-[#222] rounded-xl overflow-hidden aspect-video bg-black flex items-center justify-center">
+                        <img src={afterFormImage} alt="البعد" className="w-full h-full object-contain" />
+                        <button
+                          type="button"
+                          onClick={() => setAfterFormImage("")}
+                          className="absolute top-1 right-1 p-1 bg-black/80 hover:bg-rose-950 text-white rounded-full"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center border border-dashed border-[#222] hover:border-[#C5A028]/35 rounded-xl p-4 text-center cursor-pointer bg-[#141414] transition-colors">
+                        <UploadCloud className="w-6 h-6 text-[#555]" />
+                        <span className="text-xs text-[#666] mt-1.5 font-sans">اسحب أو اضغط لرفع صورة البعد</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleImageFile(e, "afterForm")}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* Notes update */}
+                  <div>
+                    <label className="block text-[11px] text-[#aaa] mb-1">تحديث الملاحظات والشهود</label>
+                    <textarea
+                      rows={2}
+                      placeholder="ملاحظات بعد الحصول على الصبة والسبك..."
+                      value={afterFormNotes}
+                      onChange={(e) => setAfterFormNotes(e.target.value)}
+                      className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] outline-none resize-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-[#000] font-black py-2.5 px-4 rounded-xl transition-all cursor-pointer shadow-lg flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>تصفية وحساب النقيصة فوراً ⚖️</span>
+                  </button>
+                </>
+              )}
+            </form>
+          )}
+
+          {/* MODE 3: BOTH (INTEGRATED FULL FORM) */}
+          {formMode === "both" && (
+            <form onSubmit={handleBothSubmit} className="space-y-4 animate-fadeIn">
+              <div className="bg-[#141414] p-3 rounded-lg text-[11px] border border-[#222] text-[#888] mb-1 leading-relaxed">
+                ✍️ <strong>الترحيل الكامل:</strong> هل قمت بالصهر والوزن بالفعل؟ دخل القبل والبعد وصورهم معاً كإجراء جرد سريع.
+              </div>
+
+              {/* Date & Time */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1">التاريخ</label>
+                  <input
+                    type="date"
+                    required
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-2.5 py-2 text-xs font-mono text-right focus:border-[#C5A028] outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1">الوقت</label>
+                  <input
+                    type="time"
+                    required
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-2.5 py-2 text-xs font-mono text-right focus:border-[#C5A028] outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Input Weight */}
+              <div>
+                <label className="block text-xs font-bold text-[#aaa] mb-1">وزن استلام قبل الصهر (الكسر)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.001"
+                    required
+                    placeholder="0.000"
+                    value={kar}
+                    onChange={(e) => setKar(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl pl-12 pr-4 py-2 text-xs text-left font-mono focus:border-[#C5A028] outline-none"
+                  />
+                  <span className="absolute left-3 top-2.5 text-[11px] text-[#555] font-bold">غرام</span>
+                </div>
+              </div>
+
+              {/* Output Weight */}
+              <div>
+                <label className="block text-xs font-bold text-[#aaa] mb-1">وزن صب السبيكة (بعد الصهر)</label>
                 <div className="relative">
                   <input
                     type="number"
@@ -220,112 +518,125 @@ export const CastingTab: React.FC<CastingTabProps> = ({
                     placeholder="0.000"
                     value={sabba}
                     onChange={(e) => setSabba(e.target.value)}
-                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl pl-14 pr-4 py-2.5 text-sm text-left font-mono focus:border-[#C5A028] focus:ring-1 focus:ring-[#C5A028] focus:bg-[#070707] focus:outline-none transition-all duration-200"
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl pl-12 pr-4 py-2 text-xs text-left font-mono focus:border-[#C5A028] outline-none"
                   />
-                  <span className="absolute left-4 top-3 text-xs text-[#666] font-semibold">غرام</span>
+                  <span className="absolute left-3 top-2.5 text-[11px] text-[#555] font-bold">غرام</span>
                 </div>
               </div>
-            ) : (
-              <div className="bg-amber-950/15 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-200 animate-fadeIn">
-                <p className="flex items-center gap-1.5 font-bold text-amber-400">
-                  <Clock className="w-4 h-4" /> وضع "القبل فقط" معلق
-                </p>
-                <p className="mt-1 text-[11px] text-[#888] leading-relaxed">
-                  سيتم حفظ وزن الكسر المستلم الآن، وتأجيل إدخال الصب (البعد) حتى تتم العملية وتستلم سبيكتك.
-                </p>
-              </div>
-            )}
 
-            {/* Notes */}
-            <div>
-              <label className="block text-xs font-semibold text-[#aaa] mb-1.5">ملاحظات وشهود الصهر</label>
-              <textarea
-                rows={2}
-                placeholder="مثال: صب كسر عيار 21، صياغة منير، صبة الشجرة..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-4 py-2.5 text-sm focus:border-[#C5A028] focus:ring-1 focus:ring-[#C5A028] focus:bg-[#070707] focus:outline-none transition-all duration-200 resize-none"
-              />
-            </div>
-
-            {/* Live calculation banner */}
-            {parsedKar > 0 && parsedSabba > 0 && (
-              <div className="bg-[#1a1a1a] rounded p-3 border border-[#2a2a2a] space-y-1">
-                <div className="flex justify-between text-xs text-[#888]">
-                  <span>النتيجة المحسوبة:</span>
-                  {computedLoss > 0 ? (
-                    <span className="font-bold text-rose-400 font-mono">
-                      نطالب بنقص (نقص): {computedLoss.toFixed(3)} غرام
-                    </span>
-                  ) : computedLoss < 0 ? (
-                    <span className="font-bold text-emerald-400 font-mono">
-                      وفر/زيادة في الصبة: {Math.abs(computedLoss).toFixed(3)} غرام
-                    </span>
+              {/* Double Image Grid */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[10px] text-[#888] mb-1">صورة قبل الصهر</label>
+                  {beforeImage ? (
+                    <div className="relative border border-[#222] rounded-lg overflow-hidden h-14 bg-black">
+                      <img src={beforeImage} alt="قبل" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setBeforeImage("")} className="absolute top-0.5 right-0.5 p-0.5 bg-black/80 text-white rounded-full"><XCircle className="w-3 h-3" /></button>
+                    </div>
                   ) : (
-                    <span className="font-bold text-white font-mono">
-                      موزن تماماً (0.000)
-                    </span>
+                    <label className="flex items-center justify-center gap-1 border border-dashed border-[#222] rounded-lg h-14 cursor-pointer bg-[#141414] text-[9px] text-[#666]">
+                      <UploadCloud className="w-4 h-4" />
+                      <span>رفع قبل</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageFile(e, "before")} />
+                    </label>
                   )}
                 </div>
-                <div className="flex justify-between text-xs text-[#888]">
-                  <span>نسبة {computedLoss >= 0 ? "عجز" : "زيادة"} الصهر والسبك:</span>
-                  <span className={`font-bold font-mono ${computedLoss >= 0 ? "text-rose-400" : "text-emerald-400"}`}>
-                    {computedLossPercent.toFixed(2)}%
-                  </span>
+                <div>
+                  <label className="block text-[10px] text-[#888] mb-1">صورة بعد الصهر</label>
+                  {afterImage ? (
+                    <div className="relative border border-[#222] rounded-lg overflow-hidden h-14 bg-black">
+                      <img src={afterImage} alt="بعد" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setAfterImage("")} className="absolute top-0.5 right-0.5 p-0.5 bg-black/80 text-white rounded-full"><XCircle className="w-3 h-3" /></button>
+                    </div>
+                  ) : (
+                    <label className="flex items-center justify-center gap-1 border border-dashed border-[#222] rounded-lg h-14 cursor-pointer bg-[#141414] text-[9px] text-[#666]">
+                      <UploadCloud className="w-4 h-4" />
+                      <span>رفع بعد</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageFile(e, "after")} />
+                    </label>
+                  )}
                 </div>
               </div>
-            )}
 
-            <button
-              type="submit"
-              className="w-full bg-[#C5A028] hover:bg-[#d9b132] text-[#0a0a0a] font-bold py-2.5 px-4 rounded transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(197,160,40,0.15)]"
-            >
-              <FilePlus2 className="w-4 h-4" />
-              <span>تسجيل عملية السبك والصهر</span>
-            </button>
-          </form>
+              {/* Notes */}
+              <div>
+                <label className="block text-[11px] text-[#aaa] mb-1">ملاحظات وشهود</label>
+                <textarea
+                  rows={2}
+                  placeholder="ملاحظات الصهر والسبك..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] outline-none resize-none"
+                />
+              </div>
+
+              {/* Live calc */}
+              {parsedKar > 0 && parsedSabba > 0 && (
+                <div className="bg-[#141414] p-3 rounded-lg border border-[#222] text-[11px] space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-[#666]">النقيصة / الوفر:</span>
+                    <span className={computedLoss >= 0 ? "text-rose-400 font-bold font-mono" : "text-emerald-400 font-bold font-mono"}>
+                      {computedLoss >= 0 ? `-${computedLoss.toFixed(3)}` : `+${Math.abs(computedLoss).toFixed(3)}`}g
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#666]">النسبة المئوية:</span>
+                    <span className="font-mono text-white">{computedLossPercent.toFixed(2)}%</span>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full bg-[#C5A028] hover:bg-[#d9b132] text-neutral-950 font-bold py-2.5 px-4 rounded-xl transition-all cursor-pointer shadow-lg"
+              >
+                ترحيل السجل بالكامل ⚖️
+              </button>
+            </form>
+          )}
         </div>
       </div>
 
-      {/* Table & Logs Column */}
-      <div className="md:col-span-7 lg:col-span-8 space-y-4">
-        {/* Search */}
-        <div className="bg-[#141414] p-4 rounded border border-[#2a2a2a] flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* Tables Column */}
+      <div className="lg:col-span-7 xl:col-span-8 space-y-4">
+        {/* Search Header */}
+        <div className="bg-[#141414] p-4 rounded-2xl border border-[#222] flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="relative w-full sm:w-72">
-            <Search className="w-4 h-4 text-[#666] absolute right-3 top-3" />
+            <Search className="w-4 h-4 text-[#555] absolute right-3 top-3.5" />
             <input
               type="text"
               placeholder="البحث باليوم، التاريخ أو الملاحظة..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full text-right text-white bg-[#1a1a1a] border border-[#2a2a2a] rounded pl-3 pr-9 py-2 text-xs focus:border-[#C5A028] focus:bg-[#0c0c0c] focus:outline-none transition-colors"
+              className="w-full text-right text-white bg-[#181818] border border-[#222] rounded-xl pl-3 pr-9 py-2.5 text-xs focus:border-[#C5A028] outline-none transition-colors"
             />
           </div>
           <div className="text-xs text-[#888] font-medium">
-            تصفية النتائج: عرض <span className="text-[#C5A028] font-bold">{filteredRecords.length}</span> من أصل <span className="text-[#C5A028] font-bold">{records.length}</span> عملية سبك وصهر
+            عرض <span className="text-[#C5A028] font-bold">{filteredRecords.length}</span> من أصل <span className="text-[#C5A028] font-bold">{records.length}</span> عملية صهر
           </div>
         </div>
 
-        {/* Table representation */}
-        <div className="bg-[#141414] rounded border border-[#2a2a2a] overflow-hidden shadow-sm">
+        {/* Ledger Table */}
+        <div className="bg-[#141414] rounded-2xl border border-[#222] overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-right text-sm">
-              <thead className="bg-[#1a1a1a] border-b border-[#2a2a2a] text-[#888] text-xs">
+            <table className="w-full text-right text-xs sm:text-sm">
+              <thead className="bg-[#181818] border-b border-[#222] text-[#888] text-xs">
                 <tr>
-                  <th className="px-4 py-3.5 text-center font-bold">حذف</th>
-                  <th className="px-4 py-3.5 font-bold">ملاحظات</th>
-                  <th className="px-4 py-3.5 text-center font-bold">% نسبة عجز/زيادة</th>
-                  <th className="px-4 py-3.5 text-left font-bold font-mono">النقص (-) أو الزيادة (+)</th>
-                  <th className="px-4 py-3.5 text-left font-bold font-mono">وزن الصبة الناتجة</th>
-                  <th className="px-4 py-3.5 text-left font-bold font-mono">استلام كسر (خام ٢١)</th>
-                  <th className="px-4 py-3.5 font-bold text-center">التاريخ / الوقت</th>
+                  <th className="px-3 py-3 text-center font-bold">حذف</th>
+                  <th className="px-3 py-3 text-center font-bold">صور السبيكة</th>
+                  <th className="px-3 py-3 font-bold">ملاحظات الصهر</th>
+                  <th className="px-3 py-3 text-center font-bold">% نسبة النقيصة</th>
+                  <th className="px-3 py-3 text-left font-bold font-mono">طبيعة العجز (-) / الوفر (+)</th>
+                  <th className="px-3 py-3 text-left font-bold font-mono">وزن الصبة (البعد)</th>
+                  <th className="px-3 py-3 text-left font-bold font-mono">استلام كسر (القبل)</th>
+                  <th className="px-3 py-3 font-bold text-center">التاريخ / الوقت</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#222]">
                 {filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-10 text-[#666] text-xs">
-                      لا توجد سجلات سبك أو صهر مدخلة حالياً. استخدم النموذج للتسجيل أو اضغط على زر بيانات الدفتر التجريبية.
+                    <td colSpan={8} className="text-center py-12 text-[#666] text-xs">
+                      لا توجد سجلات سبك وصهر مدخلة حالياً. استخدم لوحة التسجيل لبدء الجرد.
                     </td>
                   </tr>
                 ) : (
@@ -334,46 +645,93 @@ export const CastingTab: React.FC<CastingTabProps> = ({
                     const isProfit = !isPending && record.loss !== undefined && record.loss < 0;
                     const absoluteLoss = !isPending && record.loss !== undefined ? Math.abs(record.loss) : 0;
                     const pct = !isPending && record.kar > 0 && record.loss !== undefined ? (absoluteLoss / record.kar) * 100 : 0;
+                    
                     return (
-                      <tr key={record.id} className="hover:bg-[#1a1a1a]/40 transition-colors">
-                        <td className="px-4 py-3 text-center">
+                      <tr key={record.id} className={`hover:bg-[#1a1a1a]/40 transition-colors ${isPending ? 'bg-amber-950/5 border-r-2 border-r-amber-500/50' : ''}`}>
+                        {/* Action delete */}
+                        <td className="px-3 py-4 text-center">
                           <button
                             onClick={() => onDeleteRecord(record.id)}
-                            className="p-1 text-[#666] hover:text-rose-400 rounded hover:bg-rose-950/20 transition-colors cursor-pointer"
-                            title="حذف هذا السجل"
+                            className="p-1 text-[#555] hover:text-rose-400 rounded-lg hover:bg-rose-950/20 transition-colors"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </td>
-                        <td className="px-4 py-3 text-[#888] max-w-[200px] truncate" title={record.notes}>
+
+                        {/* Double Image Preview column */}
+                        <td className="px-2 py-3 text-center whitespace-nowrap">
+                          <div className="flex justify-center items-center gap-1.5 mx-auto">
+                            {/* Before Image */}
+                            {record.beforeImage ? (
+                              <button
+                                type="button"
+                                onClick={() => setZoomImage(record.beforeImage || null)}
+                                className="relative group w-7 h-7 rounded border border-[#222] overflow-hidden hover:border-[#C5A028] transition-colors"
+                                title="عرض صورة القبل"
+                              >
+                                <img src={record.beforeImage} alt="قبل" className="w-full h-full object-cover" />
+                                <span className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all text-[8px] text-white">قبل</span>
+                              </button>
+                            ) : (
+                              <span className="text-[9px] text-[#444]" title="لا صورة قبل">بلا قبل</span>
+                            )}
+
+                            {/* After Image */}
+                            {isPending ? (
+                              <span className="w-7 h-7 bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center rounded text-[10px] font-sans font-bold animate-pulse" title="قيد الطبخ في الفرن">
+                                ⏳
+                              </span>
+                            ) : record.afterImage ? (
+                              <button
+                                type="button"
+                                onClick={() => setZoomImage(record.afterImage || null)}
+                                className="relative group w-7 h-7 rounded border border-[#222] overflow-hidden hover:border-emerald-500 transition-colors"
+                                title="عرض صورة البعد"
+                              >
+                                <img src={record.afterImage} alt="بعد" className="w-full h-full object-cover" />
+                                <span className="absolute inset-0 bg-emerald-950/70 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all text-[8px] text-white">بعد</span>
+                              </button>
+                            ) : (
+                              <span className="text-[9px] text-[#444]" title="لا صورة بعد">بلا بعد</span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Notes */}
+                        <td className="px-3 py-4 text-[#ccc] max-w-[150px] truncate" title={record.notes}>
                           {record.notes || "-"}
                         </td>
-                        <td className="px-4 py-3 text-center font-mono">
+
+                        {/* Percent of Loss */}
+                        <td className="px-3 py-4 text-center font-mono">
                           {isPending ? (
-                            <span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse">
-                              تحت الصهر ⏳
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">
+                              معلق 👨‍🍳
                             </span>
                           ) : (
-                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${isProfit ? 'bg-emerald-950/30 text-emerald-400 border border-emerald-900/40' : 'bg-rose-950/30 text-rose-400 border border-rose-900/40'}`}>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isProfit ? 'bg-emerald-950/30 text-emerald-400 border border-emerald-900/40' : 'bg-rose-950/30 text-rose-400 border border-rose-900/40'}`}>
                               {pct.toFixed(2)}% {isProfit ? "زيادة" : "نقص"}
                             </span>
                           )}
                         </td>
-                        <td className={`px-4 py-3 text-left font-mono font-medium ${isPending ? 'text-amber-500 bg-amber-950/5' : (isProfit ? 'text-emerald-400 bg-emerald-950/10' : 'text-rose-400 bg-rose-950/10')}`}>
+
+                        {/* Difference / Deficit */}
+                        <td className={`px-3 py-4 text-left font-mono font-bold ${isPending ? 'text-amber-500 bg-amber-950/5' : (isProfit ? 'text-emerald-400 bg-emerald-950/10' : 'text-rose-400 bg-rose-950/10')}`}>
                           {isPending ? (
-                            <span className="text-amber-500/90 text-xs font-bold font-sans">بانتظار الصب</span>
+                            <span className="text-amber-500/80 text-[10px] font-sans font-extrabold">في الفرن الكيميائي</span>
                           ) : isProfit ? (
                             `+${absoluteLoss.toFixed(3)}`
                           ) : (
                             `-${absoluteLoss.toFixed(3)}`
                           )}
                         </td>
-                        <td className="px-4 py-3 text-left font-mono text-[#e0e0e0]">
+
+                        {/* Outer Sabba */}
+                        <td className="px-3 py-4 text-left font-mono">
                           {isPending ? (
                             <button
                               onClick={() => handleOpenUpdate(record)}
-                              className="px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-neutral-950 text-[11px] font-black rounded-lg shadow-[0_2px_10px_rgba(197,160,40,0.2)] hover:scale-105 active:scale-95 transition-all text-center cursor-pointer"
-                              title="استلام الصبة وقياس النقيصة"
+                              className="px-2.5 py-1 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-neutral-950 text-[10px] font-black rounded flex items-center justify-center gap-1 hover:scale-105 active:scale-95 transition-all text-center cursor-pointer font-sans"
                             >
                               استلام الصبة ⚖️
                             </button>
@@ -381,13 +739,17 @@ export const CastingTab: React.FC<CastingTabProps> = ({
                             record.sabba?.toFixed(3)
                           )}
                         </td>
-                        <td className="px-4 py-3 text-left font-mono text-white font-semibold bg-[#1a1a1a]/30">
+
+                        {/* Base Kar */}
+                        <td className="px-3 py-4 text-left font-mono text-white font-bold bg-[#1a1a1a]/30">
                           {record.kar.toFixed(3)}
                         </td>
-                        <td className="px-4 py-3 text-center text-[#888] text-xs whitespace-nowrap">
+
+                        {/* Date Time */}
+                        <td className="px-3 py-4 text-center text-[#888] text-[10px] md:text-xs whitespace-nowrap">
                           <div>{record.date}</div>
                           {record.time && (
-                            <div className="text-[#C5A028] font-mono text-[10px] mt-0.5">{record.time}</div>
+                            <div className="text-[#C5A028] font-mono text-[9px] mt-0.5">{record.time}</div>
                           )}
                         </td>
                       </tr>
@@ -396,25 +758,25 @@ export const CastingTab: React.FC<CastingTabProps> = ({
                 )}
               </tbody>
 
-              {/* Aggregated Info row */}
+              {/* Aggregated view */}
               {records.length > 0 && (
                 <tfoot className="bg-[#0f0f0f] divide-y divide-[#222] text-[#fff] text-xs">
-                  <tr className="font-bold border-t border-[#2a2a2a]">
-                    <td className="px-4 py-3 text-center text-[#C5A028]">المجموع</td>
-                    <td className="px-4 py-3 text-[#888]">ملخص الصهر عيار ٢١ للصب والسباكة</td>
-                    <td className="px-4 py-3 text-center font-mono text-[#C5A028]">
-                      {(Math.abs(totalLoss) / totalKar * 100).toFixed(2)}% <span className="text-[10px] text-[#888]">({totalLoss >= 0 ? "متوسط العجز" : "وفر صافي"})</span>
+                  <tr className="font-bold border-t border-[#222]">
+                    <td className="px-3 py-3 text-center text-[#C5A028]" colSpan={2}>المجموع النهائي</td>
+                    <td className="px-3 py-3 text-[#777]">ملخص جرد صب وصهر الذهب عيار ٢١</td>
+                    <td className="px-3 py-3 text-center font-mono text-[#C5A028]">
+                      {(Math.abs(totalLoss) / totalKar * 100).toFixed(2)}% <span className="text-[10px] text-[#888]">({totalLoss >= 0 ? "عجز كلي" : "وفر صافي"})</span>
                     </td>
-                    <td className={`px-4 py-3 text-left font-mono ${totalLoss >= 0 ? 'text-rose-400 bg-rose-950/30' : 'text-emerald-400 bg-emerald-950/30'}`}>
+                    <td className={`px-3 py-3 text-left font-mono ${totalLoss >= 0 ? 'text-rose-400 bg-rose-950/30' : 'text-emerald-400 bg-emerald-950/30'}`}>
                       {totalLoss >= 0 ? `-${totalLoss.toFixed(3)}` : `+${Math.abs(totalLoss).toFixed(3)}`} غرام
                     </td>
-                    <td className="px-4 py-3 text-left font-mono text-[#e0e0e0]">
+                    <td className="px-3 py-3 text-left font-mono text-[#e0e0e0]">
                       {totalSabba.toFixed(3)} غرام
                     </td>
-                    <td className="px-4 py-3 text-left font-mono text-[#C5A028] bg-[#141414]">
+                    <td className="px-3 py-3 text-left font-mono text-[#C5A028] bg-[#141414]">
                       {totalKar.toFixed(3)} غرام
                     </td>
-                    <td className="px-4 py-3 text-center text-[#666]">-</td>
+                    <td className="px-3 py-3 text-center text-[#666]">-</td>
                   </tr>
                 </tfoot>
               )}
@@ -423,24 +785,42 @@ export const CastingTab: React.FC<CastingTabProps> = ({
         </div>
       </div>
 
-      {/* Complete/Update Modal */}
+      {/* Global Scale Image Preview Modal */}
+      {zoomImage && (
+        <div className="fixed inset-0 bg-black/95 z-50 flex flex-col justify-center items-center p-4 animate-fadeIn" onClick={() => setZoomImage(null)}>
+          <div className="relative max-w-4xl max-h-[85vh] w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <img src={zoomImage} alt="معاينة كاملة بدقة عالية" className="max-w-full max-h-full object-contain rounded-2xl border border-[#333] shadow-2xl" />
+            <button
+              type="button"
+              className="absolute top-2 right-2 text-[#aaa] hover:text-white bg-black/80 hover:bg-neutral-800 p-2 rounded-full cursor-pointer transition-colors"
+              onClick={() => setZoomImage(null)}
+            >
+              <EyeOff className="w-5 h-5" />
+            </button>
+          </div>
+          <p className="text-[#888] text-xs mt-3 text-center font-sans">اضغط في أي مكان خارج الصورة أو الزر لإغلاق المعاينة</p>
+        </div>
+      )}
+
+      {/* Complete/Update Modal (In Row Update click) */}
       {updatingRecordId && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4 animate-fadeIn backdrop-blur-sm">
-          <div className="bg-[#0f0f0f] border border-[#222] rounded-2xl p-6 max-w-sm w-full shadow-2xl relative">
+        <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-[100] p-4 animate-fadeIn backdrop-blur-sm">
+          <div className="bg-[#0f0f0f] border border-[#222] rounded-2xl p-6 max-w-sm w-full shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
             <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#C5A028] to-transparent opacity-80" />
             
-            <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
-              <Scale className="w-5 h-5 text-[#C5A028]" /> إكمال صب سبيكة الذهب (تسجيل البعد)
+            <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2 font-sans text-right">
+              <Scale className="w-5 h-5 text-[#C5A028]" /> إكمال صب سبيكة الذهب (الخطوة الثانية: البعد)
             </h3>
-            <p className="text-[11px] text-[#888] mb-4 leading-relaxed">
-              قم بإدخال الوزن النهائي بعد صهر الذهب وصبّه لحساب نسبة الفاقد/العجز في الورشة بدقة.
+            <p className="text-[11px] text-[#888] mb-4 leading-relaxed font-sans text-right">
+              أدخل الوزن النهائي بعد صهر الذهب وصب السبيكة لتوثيق فاقد الذهب بدقة مع صالحة صور المعاينة.
             </p>
 
             <form onSubmit={handleSaveUpdate} className="space-y-4">
+              {/* Weight output */}
               <div>
                 <label className="block text-xs font-semibold text-[#aaa] mb-1.5 justify-between flex">
                   <span>وزن الصبة الناتجة (غرام)</span>
-                  <span className="text-[10px] text-[#C5A028]">الوضع: بعد الصب</span>
+                  <span className="text-[10px] text-emerald-400">الصبة</span>
                 </label>
                 <div className="relative">
                   <input
@@ -457,13 +837,29 @@ export const CastingTab: React.FC<CastingTabProps> = ({
                 </div>
               </div>
 
+              {/* After image upload */}
               <div>
-                <label className="block text-xs font-semibold text-[#aaa] mb-1.5">
-                  ملاحظات أو شهود إضافيين
-                </label>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5">صورة السبيكة الناتجة</label>
+                {updatingAfterImage ? (
+                  <div className="relative border border-[#222] rounded-xl h-24 overflow-hidden bg-black flex items-center justify-center">
+                    <img src={updatingAfterImage} alt="بعد" className="w-full h-full object-contain" />
+                    <button type="button" onClick={() => setUpdatingAfterImage("")} className="absolute top-1 right-1 p-1 bg-black/80 hover:bg-rose-950 text-white rounded-full"><XCircle className="w-3.5 h-3.5" /></button>
+                  </div>
+                ) : (
+                  <label className="flex items-center justify-center gap-1.5 border border-dashed border-[#222] rounded-xl p-3 cursor-pointer text-xs text-[#666] hover:border-[#C5A028]/45 bg-[#141414]">
+                    <UploadCloud className="w-4 h-4 text-[#555]" />
+                    <span>تحميل صورة السبيكة الناتجة</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageFile(e, "updatingAfter")} />
+                  </label>
+                )}
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5">ملاحظات تصفية الوجبة</label>
                 <textarea
                   rows={2}
-                  placeholder="مثال: تم الاستلام بواسطة المعلم، حالة الصبة ممتازة..."
+                  placeholder="مثال: صب واكتمل الترحيل بنجاح..."
                   value={updatingNotes}
                   onChange={(e) => setUpdatingNotes(e.target.value)}
                   className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] focus:ring-1 focus:outline-none resize-none"
@@ -473,9 +869,9 @@ export const CastingTab: React.FC<CastingTabProps> = ({
               <div className="flex gap-2.5 pt-2">
                 <button
                   type="submit"
-                  className="flex-grow py-2 px-4 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-neutral-950 font-bold rounded-xl text-xs transition-all cursor-pointer shadow-[0_4px_12px_rgba(197,160,40,0.2)]"
+                  className="flex-grow py-2 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-neutral-950 font-black rounded-xl text-xs transition-all cursor-pointer shadow-md"
                 >
-                  تأكيد وحساب العجز
+                  حفظ وتأكيد السجل ⚖️
                 </button>
                 <button
                   type="button"

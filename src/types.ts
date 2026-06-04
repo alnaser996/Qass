@@ -7,6 +7,8 @@ export interface CastingRecord {
   loss?: number; // Melt loss (عجز/نقص أو زيادة = كر - صبة)
   notes?: string;
   isPending?: boolean; // هل العملية مسجلة (قبل) فقط وبانتظار (البعد)
+  beforeImage?: string; // صورة كسر ومادة الذهب قبل الصهر والسبك
+  afterImage?: string; // صورة السبيكة/الصبة الناتجة بعد الصهر
 }
 
 export interface TreeCastingRecord {
@@ -19,12 +21,14 @@ export interface TreeCastingRecord {
   loss?: number; // النقص أو الزيادة = الذهب المدخل - (الإنتاج + التالف)
   productionCount?: number; // عدد قطع الإنتاج
   productionDetails?: string; // تفاصيل قطع الإنتاج
-  productionImage?: string; // صورة قطع الإنتاج (base64)
+  productionImage?: string; // صورة قطع الإنتاج (base64) - After Image
   damagedCount?: number; // عدد قطع التالف
   damagedDetails?: string; // تفاصيل قطع التالف
   damagedImage?: string; // صورة قطع التالف (base64)
   notes?: string;
   isPending?: boolean; // هل العملية مسجلة (قبل) وبانتظار نتائج الشجرة (البعد)
+  beforeImage?: string; // صورة شجرة الشمع أو شحنة الذهب المدخل قبل الصب
+  afterImage?: string; // صورة المشغولات النهائية المستخلصة من الشجرة
 }
 
 export interface RollingRecord {
@@ -42,6 +46,8 @@ export interface RollingRecord {
   image?: string; // صورة العملية/القطع المصاحبة
   notes?: string; // ملاحظات عامة
   isPending?: boolean; // هل العملية مسجلة (قبل) وبانتظار الوزن النهائي (البعد)
+  beforeImage?: string; // صورة القطع قبل بدء تشغيل الدرفلة/الأحماض
+  afterImage?: string; // صورة القطع بعد إتمام الدرفلة والاستلام
 }
 
 export interface ProductionRecord {
@@ -54,6 +60,8 @@ export interface ProductionRecord {
   receiverName: string; // اسم الموظف المستلم للإنتاج الجاهز أو الكامل
   image?: string; // صورة الإنتاج الكامل (base64)
   notes?: string; // ملاحظات عامة أو توثيقية
+  beforeImage?: string; // صورة المنتجات قبل التجهيز النهائي والختم
+  afterImage?: string; // صورة المنتجات النهائية قبل شحنها للمعرض
 }
 
 export interface FilterParams {
