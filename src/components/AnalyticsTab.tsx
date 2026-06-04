@@ -311,7 +311,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
       const wAfter = r.weightAfter ?? (r as any).after ?? 0;
       const dWeight = r.damagedWeight ?? (r as any).damaged ?? 0;
       const desc = r.details || (r as any).notes || "سحب سلك ودرفلة شريط ذهب";
-      const stageStr = r.stageType === "bombing" ? "تفجير وتجريد" : r.stageType === "repair" ? "تصليح يدوي" : "غلق فاكيوم";
+      const stageStr = r.stageType === "bombing" ? "تفجير وتجريد" : r.stageType === "repair" ? "تصليح يدوي" : "غلق فاكيوم وبونزة";
       return {
         id: r.id,
         date: r.date,

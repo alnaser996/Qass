@@ -22,6 +22,14 @@ interface RollingTabProps {
   ) => void;
   onPromoteToProduction?: (id: string) => void;
   onPromoteScrapToCasting?: (id: string) => void;
+  onPromoteToNextStage?: (id: string) => void;
+  onPromoteSplitStage?: (
+    id: string,
+    repairWeight: number,
+    repairPieces: number,
+    vacuumWeight: number,
+    vacuumPieces: number
+  ) => void;
 }
 
 export const RollingTab: React.FC<RollingTabProps> = ({
@@ -31,6 +39,8 @@ export const RollingTab: React.FC<RollingTabProps> = ({
   onUpdateRecord,
   onPromoteToProduction,
   onPromoteScrapToCasting,
+  onPromoteToNextStage,
+  onPromoteSplitStage,
 }) => {
   // Stepper Sub-navigation ("قبل صفحة بعد صفحة ומثل هسة")
   const [formMode, setFormMode] = useState<"before" | "after" | "both">("before");
@@ -72,6 +82,13 @@ export const RollingTab: React.FC<RollingTabProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [filterStage, setFilterStage] = useState<"all" | "bombing" | "repair" | "vacuum">("all");
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+
+  // Splitting batch modal state
+  const [splitRecord, setSplitRecord] = useState<RollingRecord | null>(null);
+  const [splitRepairWeight, setSplitRepairWeight] = useState<string>("");
+  const [splitRepairPieces, setSplitRepairPieces] = useState<string>("");
+  const [splitVacuumWeight, setSplitVacuumWeight] = useState<string>("");
+  const [splitVacuumPieces, setSplitVacuumPieces] = useState<string>("");
 
   // Modal updates (triggered via row action buttons)
   const [updatingRecordId, setUpdatingRecordId] = useState<string | null>(null);
@@ -444,7 +461,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                     onClick={() => setStageType("vacuum")}
                     className={`py-1.5 text-[10px] font-bold rounded-lg cursor-pointer ${stageType === "vacuum" ? "bg-amber-500/10 text-[#C5A028] border border-[#C5A028]/30" : "text-[#777] hover:text-white"}`}
                   >
-                    🌀 غلق فاكيوم
+                    🌀 غلق فاكيوم وبونزة
                   </button>
                 </div>
               </div>
@@ -577,7 +594,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                     <option value="">-- حدد الوجبة المعلقة من الدفتر --</option>
                     {pendingRecords.map((r) => (
                       <option key={r.id} value={r.id}>
-                        {r.stageType === "bombing" ? "💥 تفجير أحماض" : r.stageType === "repair" ? "🛠️ تصليح يدوي" : "🌀 غلق فاكيوم"} | قبل: {r.weightBefore.toFixed(3)}g | تاريخ: {r.date}
+                        {r.stageType === "bombing" ? "💥 تفجير أحماض" : r.stageType === "repair" ? "🛠️ تصليح يدوي" : "🌀 غلق فاكيوم وبونزة"} | قبل: {r.weightBefore.toFixed(3)}g | تاريخ: {r.date}
                       </option>
                     ))}
                   </select>
@@ -731,7 +748,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                     onClick={() => setStageType("vacuum")}
                     className={`py-1 text-[10px] font-bold rounded-lg ${stageType === "vacuum" ? "bg-amber-500/10 text-[#C5A028] border border-[#C5A028]/35" : "text-[#777] hover:text-white"}`}
                   >
-                    🌀 غلق فاكيوم
+                    🌀 غلق فاكيوم وبونزة
                   </button>
                 </div>
               </div>
@@ -885,7 +902,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
               { id: "all", label: "📄 الكل" },
               { id: "bombing", label: "💥 تفجير أحماض" },
               { id: "repair", label: "🛠️ تصليح يدوي" },
-              { id: "vacuum", label: "🌀 غلق فاكيوم" },
+              { id: "vacuum", label: "🌀 غلق فاكيوم وبونزة" },
             ].map((btn) => (
               <button
                 key={btn.id}
@@ -962,7 +979,30 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                           {isPending ? (
                             <span className="text-[10px] text-amber-500 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 animate-pulse">⏳ في السحب والدرفلة</span>
                           ) : (
-                            <div className="flex flex-col justify-center items-center gap-1">
+                            <div className="flex flex-col justify-center items-center gap-1.5 min-w-[120px]">
+                              {onPromoteToNextStage && record.weightAfter !== undefined && record.weightAfter > 0 && record.stageType !== "vacuum" && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (record.stageType === "bombing") {
+                                      setSplitRecord(record);
+                                      setSplitRepairWeight(record.weightAfter?.toString() || "");
+                                      setSplitRepairPieces(record.piecesCount?.toString() || "0");
+                                      setSplitVacuumWeight("0");
+                                      setSplitVacuumPieces("0");
+                                    } else {
+                                      onPromoteToNextStage(record.id);
+                                    }
+                                  }}
+                                  className="flex items-center gap-0.5 text-[9.5px] font-bold bg-indigo-500/10 hover:bg-indigo-600 text-indigo-400 hover:text-white px-2 py-1 rounded border border-indigo-500/20 transition-all cursor-pointer w-full justify-center"
+                                  title={record.stageType === "bombing" ? "خيارات تجزئة وتحويل الوجبة كقطع فردية" : `تحويل الوجبة للمرحلة التالية بوزن (${record.weightAfter.toFixed(3)}غ)`}
+                                >
+                                  <Layers className="w-2.5 h-2.5" />
+                                  <span>
+                                    {record.stageType === "bombing" ? "تحويل وتقسيم الوجبة ⚖️" : "تحويل للفاكيوم والطلب 🌀"}
+                                  </span>
+                                </button>
+                              )}
                               {onPromoteToProduction && record.weightAfter !== undefined && record.weightAfter > 0 && (
                                 <button
                                   type="button"
@@ -1045,7 +1085,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                         <td className="px-3 py-4 text-[#aaa] max-w-[150px] truncate">
                           <div>
                             <span className="font-extrabold text-white text-[11px]">
-                              {record.stageType === "bombing" ? "💥 تفجير أحماض" : record.stageType === "repair" ? "🛠️ تصليح يدوي" : "🌀 غلق فاكيوم"}
+                              {record.stageType === "bombing" ? "💥 تفجير أحماض" : record.stageType === "repair" ? "🛠️ تصليح يدوي" : "🌀 غلق فاكيوم وبونزة"}
                             </span>
                             <div className="text-[10px] text-[#666] mt-0.5 truncate" title={record.details || record.notes}>
                               {record.details || record.notes || "تصفية سبيكة صياغة وجرد"}
@@ -1453,6 +1493,172 @@ export const RollingTab: React.FC<RollingTabProps> = ({
           </div>
         </div>
       )}
+
+      {/* Interactive Split and Promote Modal */}
+      {splitRecord && (() => {
+        const totalW = splitRecord.weightAfter || 0;
+        const totalP = splitRecord.piecesCount || 0;
+        
+        const repairWNum = parseFloat(splitRepairWeight) || 0;
+        const repairPNum = parseInt(splitRepairPieces) || 0;
+        
+        const remainingW = Math.max(0, totalW - repairWNum);
+        const remainingP = Math.max(0, totalP - repairPNum);
+
+        return (
+          <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-[110] p-4 animate-fadeIn backdrop-blur-sm text-right font-sans" dir="rtl">
+            <div className="bg-[#0f0f0f] border border-[#222] rounded-2xl p-6 max-w-lg w-full max-h-[92vh] overflow-y-auto shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+              <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-indigo-500 via-[#C5A028] to-emerald-500 opacity-80" />
+              
+              <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2 font-sans text-right">
+                <Layers className="w-5 h-5 text-indigo-400" />
+                <span>خيارات تفرعة وتجزئة الوجبة رقم ({splitRecord.id.replace("roll-", "")})</span>
+              </h3>
+              <p className="text-[11px] text-[#888] mb-4 leading-relaxed text-right">
+                وصلت هذه الوجبة إلى ذروتها في التفجير بوزن صافي قدره <strong className="text-white">({totalW.toFixed(3)} غ)</strong> بعدد <strong className="text-white">({totalP} قطع)</strong>. يمكنك تحويلها بالكامل أو تقسيمها بالتفصيل إلى مرحلتين حسب صلاحية ونظافة القطع:
+              </p>
+
+              {/* Quick Presets Buttons */}
+              <div className="bg-[#141414] border border-[#222] p-3 rounded-xl mb-4">
+                <span className="block text-[10px] text-[#666] mb-2 font-bold">خيارات التوصيل السريعة:</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSplitRepairWeight(totalW.toString());
+                      setSplitRepairPieces(totalP.toString());
+                    }}
+                    className="py-1.5 px-2 bg-amber-500/10 hover:bg-amber-500/20 text-[#C5A028] border border-[#C5A028]/30 rounded-lg text-[10px] font-black transition-all cursor-pointer text-center"
+                  >
+                    🛠️ تحويل الوجبة كلياً للتصليح
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSplitRepairWeight("0");
+                      setSplitReviewPiecesCountZero();
+                      function setSplitReviewPiecesCountZero() {
+                        setSplitRepairPieces("0");
+                      }
+                    }}
+                    className="py-1.5 px-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-black transition-all cursor-pointer text-center"
+                  >
+                    🌀 تحويل كلي للفاكيوم والطلب
+                  </button>
+                </div>
+              </div>
+
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (repairWNum < 0 || repairWNum > totalW + 0.0001) {
+                    alert("وزن التصليح غير صحيح أو يتجاوز الوزن الإجمالي للوجبة!");
+                    return;
+                  }
+                  if (repairPNum < 0 || repairPNum > totalP) {
+                    alert("عدد قطع التصليح غير صحيح!");
+                    return;
+                  }
+                  if (onPromoteSplitStage) {
+                    onPromoteSplitStage(
+                      splitRecord.id, 
+                      repairWNum, 
+                      repairPNum, 
+                      parseFloat(remainingW.toFixed(3)), 
+                      remainingP
+                    );
+                  }
+                  setSplitRecord(null);
+                }} 
+                className="space-y-4"
+              >
+                {/* 1. Repair Portion Card */}
+                <div className="bg-indigo-950/10 border border-indigo-500/20 p-3.5 rounded-xl space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
+                      <Wrench className="w-4 h-4" /> الجزء المتجه إلى: التصليح اليدوي 🛠️
+                    </span>
+                    <span className="text-[10px] bg-indigo-500/10 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/20">يحتاج تعديلات عينية</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 text-right">
+                    <div>
+                      <label className="block text-[10px] text-[#aaa] mb-1">الوزن للتصليح (غرام)</label>
+                      <input
+                        type="number"
+                        step="0.001"
+                        max={totalW}
+                        min="0"
+                        required
+                        value={splitRepairWeight}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSplitRepairWeight(val);
+                        }}
+                        className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-2.5 py-1.5 text-xs text-left font-mono focus:border-indigo-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-[#aaa] mb-1">عدد قطع التصليح</label>
+                      <input
+                        type="number"
+                        max={totalP}
+                        min="0"
+                        required
+                        value={splitRepairPieces}
+                        onChange={(e) => setSplitRepairPieces(e.target.value)}
+                        className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-2.5 py-1.5 text-xs text-left font-mono focus:border-indigo-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Direct Vacuum/Request Portion Card (Auto-computed) */}
+                <div className="bg-emerald-950/10 border border-emerald-500/20 p-3.5 rounded-xl space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                      <Flame className="w-4 h-4" /> المجهر التلقائي: غلق فاكيوم وبونزة 🌀
+                    </span>
+                    <span className="text-[10px] bg-emerald-500/10 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/20">جاهز ومستثنى مباشرة</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-right">
+                    <div>
+                      <span className="block text-[10px] text-[#666] mb-1">الوزن المتبقي المتجه للفاكيوم</span>
+                      <div className="w-full bg-[#121212] border border-[#222] rounded-xl px-2.5 py-1.5 text-xs text-left font-mono text-emerald-400 font-bold select-none">
+                        {remainingW.toFixed(3)} غ
+                      </div>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] text-[#666] mb-1">قطع الفاكيوم المتبقية</span>
+                      <div className="w-full bg-[#121212] border border-[#222] rounded-xl px-2.5 py-1.5 text-xs text-left font-mono text-emerald-400 font-bold select-none">
+                        {remainingP} قطع
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Confirm & Cancel Rows */}
+                <div className="flex gap-2.5 pt-3">
+                  <button
+                    type="submit"
+                    className="flex-grow py-2.5 px-4 bg-gradient-to-r from-indigo-500 via-amber-500 to-emerald-500 text-neutral-950 font-black rounded-xl text-xs hover:scale-[1.02] active:scale-95 transition-all shadow-md cursor-pointer"
+                  >
+                    🚀 اعتماد التقسيم وصرف القطع
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSplitRecord(null)}
+                    className="py-2.5 px-4 bg-[#1a1a1a] hover:bg-[#252525] text-[#aaa] font-bold rounded-xl text-xs border border-neutral-800 cursor-pointer"
+                  >
+                    تراجع
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

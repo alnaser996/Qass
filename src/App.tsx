@@ -622,6 +622,106 @@ export default function App() {
     alert(`♻️ تم ترحيل رايش وتالف السحب والدرفلة (وزن: ${roll.damagedWeight.toFixed(3)}غ) تلقائياً لإعادة صهره وسبكه كسر من جديد!`);
   };
 
+  const handlePromoteRollingToNextStage = (rollId: string) => {
+    const roll = rollingRecords.find(r => r.id === rollId);
+    if (!roll || roll.isPending || !roll.weightAfter) {
+      alert("العملية غير صالحة للتحويل الفوري!");
+      return;
+    }
+
+    let nextStage: "bombing" | "repair" | "vacuum" = "repair";
+    let stageName = "";
+    if (roll.stageType === "bombing") {
+      nextStage = "repair";
+      stageName = "🛠️ التصليح اليدوي";
+    } else if (roll.stageType === "repair") {
+      nextStage = "vacuum";
+      stageName = "🌀 غلق الفاكيوم والبونزة";
+    } else {
+      alert("الوجبة في مرحلة غلق الفاكيوم والبونزة بالفعل! يمكنك ترحيلها لمعرض المشغولات النهائي.");
+      return;
+    }
+
+    const newRolling: Omit<RollingRecord, "id" | "loss"> & { isPending?: boolean } = {
+      stageType: nextStage,
+      date: new Date().toISOString().substring(0, 10),
+      time: new Date().toTimeString().substring(0, 5),
+      weightBefore: roll.weightAfter, // Same batch flow
+      piecesCount: roll.piecesCount,
+      details: roll.details ? `تابع للمسار رقم (${roll.id}) - ${roll.details}` : `تابع للمسار رقم (${roll.id})`,
+      notes: `ترحيل وتسلسل تلقائي لنفس الوجبة من مرحلة ${roll.stageType === "bombing" ? "التفجير والأحماض" : "التصليح اليدوي"}`,
+      isPending: true,
+      beforeImage: roll.afterImage || roll.image,
+    };
+
+    handleAddRolling(newRolling);
+    alert(`🚀 تم تحويل الوجبة بنجاح وبشكل متسلسل لمرحلة (${stageName}) بقيمة وزن مدخل (${roll.weightAfter.toFixed(3)}غ)!`);
+  };
+
+  const handlePromoteRollingSplitStage = (
+    rollId: string,
+    repairWeight: number,
+    repairPieces: number,
+    vacuumWeight: number,
+    vacuumPieces: number
+  ) => {
+    const roll = rollingRecords.find(r => r.id === rollId);
+    if (!roll || roll.isPending || !roll.weightAfter) {
+      alert("العملية غير صالحة للتجزئة!");
+      return;
+    }
+
+    const itemsAddedMsg: string[] = [];
+
+    // Add Repair segment if there's any weight
+    if (repairWeight > 0) {
+      const newRepair: Omit<RollingRecord, "id"> = {
+        stageType: "repair",
+        date: new Date().toISOString().substring(0, 10),
+        time: new Date().toTimeString().substring(0, 5),
+        weightBefore: repairWeight,
+        piecesCount: repairPieces,
+        details: roll.details ? `جزء للتصليح - مفرع من وجبة (${roll.id}) - ${roll.details}` : `جزء للتصليح - مفرع من وجبة (${roll.id})`,
+        notes: `تجزئة تلقائية لقطع تحتاج تصليح من وجبة التفجير (${roll.id})`,
+        isPending: true,
+        beforeImage: roll.afterImage || roll.image,
+      };
+      // We directly add it using handleAddRolling
+      const nextRecords = [
+        { ...newRepair, id: `roll-rep-${Date.now()}` },
+      ];
+      // Since react state is batch updated, we can append them together or call handleAddRolling sequentially.
+      // Sequential is fine, but to have clean state updates let's push them.
+      // Wait, let's create a temporary array to make sure both can get added cleanly:
+      handleAddRolling(newRepair);
+      itemsAddedMsg.push(`(${repairWeight.toFixed(3)}غ) بعدد (${repairPieces} قطع) لمرحلة التصليح اليدوي 🛠️`);
+    }
+
+    // Add Vacuum segment if there's any weight to avoid double render delays, let's use a small timeout or merge.
+    // Actually, calling handleAddRolling twice in React works perfectly as we update states, but let's delay the second one slightly or just let state scheduler handle it.
+    // Even better, let's directly write a custom block that can add both in a single state update, or use a tiny delay:
+    if (vacuumWeight > 0) {
+      setTimeout(() => {
+        const newVacuum: Omit<RollingRecord, "id"> = {
+          stageType: "vacuum",
+          date: new Date().toISOString().substring(0, 10),
+          time: new Date().toTimeString().substring(0, 5),
+          weightBefore: vacuumWeight,
+          piecesCount: vacuumPieces,
+          details: roll.details ? `جزء للفاكيوم - مفرع من وجبة (${roll.id}) - ${roll.details}` : `جزء للفاكيوم - مفرع من وجبة (${roll.id})`,
+          notes: `تجزئة تلقائية لقطع جاهزة مباشرة من وجبة التفجير (${roll.id})`,
+          isPending: true,
+          beforeImage: roll.afterImage || roll.image,
+        };
+        handleAddRolling(newVacuum);
+      }, 50);
+      itemsAddedMsg.push(`(${vacuumWeight.toFixed(3)}غ) بعدد (${vacuumPieces} قطع) لمرحلة الفاكيوم وبونزة 🌀`);
+    }
+
+    alert(`🚀 تم تفرعة وتقسيم الوجبة بنجاح:
+` + itemsAddedMsg.map(m => ` • ${m}`).join("\n"));
+  };
+
   // Export JSON Backup
   const handleExportJSON = () => {
     const backup = {
@@ -795,6 +895,8 @@ export default function App() {
               onUpdateRecord={handleUpdateRolling}
               onPromoteToProduction={handlePromoteRollingToProduction}
               onPromoteScrapToCasting={handlePromoteRollingScrapToCasting}
+              onPromoteToNextStage={handlePromoteRollingToNextStage}
+              onPromoteSplitStage={handlePromoteRollingSplitStage}
             />
           )}
 
