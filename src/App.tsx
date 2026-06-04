@@ -252,16 +252,30 @@ export default function App() {
     saveToStorage("gold_loss_casting", updated);
   };
 
-  const handleUpdateCasting = (id: string, sabba: number, notes?: string, afterImage?: string) => {
+  const handleUpdateCasting = (
+    id: string,
+    kar: number,
+    sabba?: number,
+    notes?: string,
+    afterImage?: string,
+    date?: string,
+    time?: string
+  ) => {
     const updated = castingRecords.map((r) => {
       if (r.id === id) {
+        const updatedKar = kar;
+        const updatedSabba = sabba;
+        const computedLoss = updatedSabba !== undefined ? (updatedKar - updatedSabba) : undefined;
         return {
           ...r,
-          sabba,
-          loss: r.kar - sabba,
-          isPending: false,
+          kar: updatedKar,
+          sabba: updatedSabba,
+          loss: computedLoss,
+          isPending: updatedSabba === undefined,
           notes: notes !== undefined ? notes : r.notes,
           afterImage: afterImage || r.afterImage,
+          date: date || r.date,
+          time: time || r.time,
         };
       }
       return r;
@@ -291,33 +305,46 @@ export default function App() {
 
   const handleUpdateTreeCasting = (
     id: string,
-    productionWeight: number,
-    damagedWeight: number,
-    productionCount: number,
-    productionDetails: string,
-    damagedCount: number,
-    damagedDetails: string,
+    inputWeight: number,
+    productionWeight?: number,
+    damagedWeight?: number,
+    productionCount?: number,
+    productionDetails?: string,
+    damagedCount?: number,
+    damagedDetails?: string,
     notes?: string,
     productionImage?: string,
     damagedImage?: string,
-    afterImage?: string
+    afterImage?: string,
+    date?: string,
+    time?: string
   ) => {
     const updated = treeCastingRecords.map((r) => {
       if (r.id === id) {
+        const updatedInput = inputWeight;
+        const updatedProd = productionWeight;
+        const updatedDam = damagedWeight;
+        let computedLoss = undefined;
+        if (updatedProd !== undefined || updatedDam !== undefined) {
+          computedLoss = updatedInput - ((updatedProd || 0) + (updatedDam || 0));
+        }
         return {
           ...r,
-          productionWeight,
-          damagedWeight,
-          productionCount,
-          productionDetails,
-          damagedCount,
-          damagedDetails,
-          loss: r.inputWeight - (productionWeight + damagedWeight),
-          isPending: false,
+          inputWeight: updatedInput,
+          productionWeight: updatedProd,
+          damagedWeight: updatedDam,
+          productionCount: productionCount !== undefined ? productionCount : r.productionCount,
+          productionDetails: productionDetails !== undefined ? productionDetails : r.productionDetails,
+          damagedCount: damagedCount !== undefined ? damagedCount : r.damagedCount,
+          damagedDetails: damagedDetails !== undefined ? damagedDetails : r.damagedDetails,
+          loss: computedLoss,
+          isPending: updatedProd === undefined && updatedDam === undefined,
           notes: notes !== undefined ? notes : r.notes,
           productionImage: productionImage || r.productionImage,
           damagedImage: damagedImage || r.damagedImage,
           afterImage: afterImage || productionImage || r.afterImage || r.productionImage,
+          date: date || r.date,
+          time: time || r.time,
         };
       }
       return r;
@@ -347,29 +374,39 @@ export default function App() {
 
   const handleUpdateRolling = (
     id: string,
-    weightAfter: number,
+    weightBefore: number,
+    weightAfter?: number,
     damagedWeight?: number,
     piecesCount?: number,
     details?: string,
     notes?: string,
     image?: string,
     damagedImage?: string,
-    afterImage?: string
+    afterImage?: string,
+    date?: string,
+    time?: string
   ) => {
     const updated = rollingRecords.map((r) => {
       if (r.id === id) {
+        const uBefore = weightBefore;
+        const uAfter = weightAfter;
+        const uDamaged = damagedWeight || 0;
+        const computedLoss = uAfter !== undefined ? (uBefore - (uAfter + uDamaged)) : undefined;
         return {
           ...r,
-          weightAfter,
-          damagedWeight,
-          piecesCount,
-          details,
-          loss: r.weightBefore - (weightAfter + (damagedWeight || 0)),
-          isPending: false,
+          weightBefore: uBefore,
+          weightAfter: uAfter,
+          damagedWeight: damagedWeight,
+          piecesCount: piecesCount !== undefined ? piecesCount : r.piecesCount,
+          details: details !== undefined ? details : r.details,
+          loss: computedLoss,
+          isPending: uAfter === undefined,
           notes: notes !== undefined ? notes : r.notes,
           image: image || r.image,
           damagedImage: damagedImage || r.damagedImage,
           afterImage: afterImage || image || r.afterImage || r.image,
+          date: date || r.date,
+          time: time || r.time,
         };
       }
       return r;
@@ -395,10 +432,194 @@ export default function App() {
     saveToStorage("gold_loss_production", updated);
   };
 
+  const handleUpdateProduction = (
+    id: string,
+    finalWeight: number,
+    piecesCount: number,
+    details: string,
+    receiverName: string,
+    notes?: string,
+    beforeImage?: string,
+    afterImage?: string,
+    date?: string,
+    time?: string
+  ) => {
+    const updated = productionRecords.map((r) => {
+      if (r.id === id) {
+        return {
+          ...r,
+          finalWeight,
+          piecesCount,
+          details,
+          receiverName,
+          notes: notes !== undefined ? notes : r.notes,
+          beforeImage: beforeImage || r.beforeImage,
+          afterImage: afterImage || r.afterImage,
+          date: date || r.date,
+          time: time || r.time,
+        };
+      }
+      return r;
+    });
+    setProductionRecords(updated);
+    saveToStorage("gold_loss_production", updated);
+  };
+
   const handleDeleteProduction = (id: string) => {
     const updated = productionRecords.filter((r) => r.id !== id);
     setProductionRecords(updated);
     saveToStorage("gold_loss_production", updated);
+  };
+
+  // ============================================
+  // WORKFLOW AUTO-PROMOTION (AUTOMATIC TRANSITIONS)
+  // ============================================
+
+  const handlePromoteCastingToTree = (castingId: string) => {
+    const cast = castingRecords.find(c => c.id === castingId);
+    if (!cast || cast.isPending || !cast.sabba) {
+      alert("العملية لم تكتمل بعد أو غير موجودة لترحيلها!");
+      return;
+    }
+    // Create new TreeCastingRecord as a pending first step
+    const newTree: Omit<TreeCastingRecord, "id" | "loss"> & { isPending?: boolean } = {
+      date: new Date().toISOString().substring(0, 10),
+      time: new Date().toTimeString().substring(0, 5),
+      inputWeight: cast.sabba,
+      notes: `ترحيل تلقائي من سبيكة صب رقم (${cast.id}) - ملاحظة سابقة: ${cast.notes || "بلا"}`,
+      isPending: true,
+      beforeImage: cast.afterImage, // Pass the cast's after-image as the tree's before-image
+    };
+    handleAddTreeCasting(newTree);
+    setActiveTab("tree_casting");
+    alert(`🚀 تم ترحيل السبيكة (وزن: ${cast.sabba.toFixed(3)}غ) كأرضية لـ "صب الشجرة" تلقائياً بنجاح!`);
+  };
+
+  const handlePromoteCastingToRolling = (castingId: string) => {
+    const cast = castingRecords.find(c => c.id === castingId);
+    if (!cast || cast.isPending || !cast.sabba) {
+      alert("العملية لم تكتمل بعد أو غير موجودة لترحيلها!");
+      return;
+    }
+    // Create new RollingRecord as a pending first step
+    const newRolling: Omit<RollingRecord, "id" | "loss"> & { isPending?: boolean } = {
+      stageType: "bombing",
+      date: new Date().toISOString().substring(0, 10),
+      time: new Date().toTimeString().substring(0, 5),
+      weightBefore: cast.sabba,
+      details: `سَحْب ودرفلة سبيكة صخرية رقم (${cast.id})`,
+      notes: `ترحيل تلقائي من سبيكة صب رقم (${cast.id})`,
+      isPending: true,
+      beforeImage: cast.afterImage,
+    };
+    handleAddRolling(newRolling);
+    setActiveTab("rolling");
+    alert(`🚀 تم ترحيل السبيكة (وزن: ${cast.sabba.toFixed(3)}غ) إلى قسم "التفجير والفاكيوم" تلقائياً بنجاح!`);
+  };
+
+  const handlePromoteTreeToRolling = (treeId: string) => {
+    const tree = treeCastingRecords.find(t => t.id === treeId);
+    if (!tree || tree.isPending || !tree.productionWeight) {
+      alert("العملية غير صالحة للترحيل!");
+      return;
+    }
+    const newRolling: Omit<RollingRecord, "id" | "loss"> & { isPending?: boolean } = {
+      stageType: "bombing",
+      date: new Date().toISOString().substring(0, 10),
+      time: new Date().toTimeString().substring(0, 5),
+      weightBefore: tree.productionWeight,
+      piecesCount: tree.productionCount,
+      details: tree.productionDetails || "مشغولات شجرة مصبوبة",
+      notes: `ترحيل تلقائي من إنتاج صب الشجرة رقم (${tree.id})`,
+      isPending: true,
+      beforeImage: tree.productionImage || tree.afterImage,
+    };
+    handleAddRolling(newRolling);
+    setActiveTab("rolling");
+    alert(`🚀 تم ترحيل المشغولات الصالحة (وزن: ${tree.productionWeight.toFixed(3)}غ) تلقائياً إلى معالجة "التحميض والفاكيوم" بنجاح!`);
+  };
+
+  const handlePromoteTreeToProduction = (treeId: string) => {
+    const tree = treeCastingRecords.find(t => t.id === treeId);
+    if (!tree || tree.isPending || !tree.productionWeight) {
+      alert("العملية غير صالحة للترحيل!");
+      return;
+    }
+    const newProd: Omit<ProductionRecord, "id"> = {
+      date: new Date().toISOString().substring(0, 10),
+      time: new Date().toTimeString().substring(0, 5),
+      finalWeight: tree.productionWeight,
+      piecesCount: tree.productionCount || 1,
+      details: tree.productionDetails || "مشغولات تصفية شجرة شمعية",
+      receiverName: "أمين الصالة الرئيسي",
+      notes: `ترحيل تلقائي ومباشر من صب الشجرة رقم (${tree.id})`,
+      beforeImage: tree.beforeImage,
+      afterImage: tree.productionImage || tree.afterImage,
+    };
+    handleAddProduction(newProd);
+    setActiveTab("production");
+    alert(`🚀 تم ترحيل وتأكيد تسليم المشغولات (وزن: ${tree.productionWeight.toFixed(3)}غ) كمنتج فاخر جاهز للعرض!`);
+  };
+
+  const handlePromoteTreeScrapToCasting = (treeId: string) => {
+    const tree = treeCastingRecords.find(t => t.id === treeId);
+    if (!tree || tree.isPending || !tree.damagedWeight) {
+      alert("لا يتوفر وزن تالف/رايش في هذه الشجرة لترحيله!");
+      return;
+    }
+    // Promote the scrap back to casting so we can melt it again
+    const newCast: Omit<CastingRecord, "id" | "loss"> & { isPending?: boolean } = {
+      date: new Date().toISOString().substring(0, 10),
+      time: new Date().toTimeString().substring(0, 5),
+      kar: tree.damagedWeight,
+      notes: `إرجاع رايش وتالف صب شمع الشجرة (${tree.id}) لإعادة الصهر والسبك المباشر`,
+      isPending: true,
+      beforeImage: tree.damagedImage,
+    };
+    handleAddCasting(newCast);
+    setActiveTab("casting");
+    alert(`♻️ تم ترحيل خردة وتالف الشجرة (وزن: ${tree.damagedWeight.toFixed(3)}غ) تلقائياً إلى "السبك والصهر" لإعادة تذويبه!`);
+  };
+
+  const handlePromoteRollingToProduction = (rollId: string) => {
+    const roll = rollingRecords.find(r => r.id === rollId);
+    if (!roll || roll.isPending || !roll.weightAfter) {
+      alert("العملية غير صالحة للترحيل!");
+      return;
+    }
+    const newProd: Omit<ProductionRecord, "id"> = {
+      date: new Date().toISOString().substring(0, 10),
+      time: new Date().toTimeString().substring(0, 5),
+      finalWeight: roll.weightAfter,
+      piecesCount: roll.piecesCount || 1,
+      details: roll.details || "مشغولات مصفاة من الأحماض والسحب الفاخر",
+      receiverName: "أمين الصالة الفني",
+      notes: `ترحيل تلقائي من تفجير الأحماض رقم (${roll.id})`,
+      beforeImage: roll.beforeImage,
+      afterImage: roll.afterImage || roll.image,
+    };
+    handleAddProduction(newProd);
+    setActiveTab("production");
+    alert(`🚀 تم ترحيل وتجهيز تسليم الوجبة المصفاة (وزن: ${roll.weightAfter.toFixed(3)}غ) إلى المعرض النهائي وحساب المخرجات!`);
+  };
+
+  const handlePromoteRollingScrapToCasting = (rollId: string) => {
+    const roll = rollingRecords.find(r => r.id === rollId);
+    if (!roll || roll.isPending || !roll.damagedWeight) {
+      alert("لا يوجد تالف/رايش في هذه الوجبة لترحيله!");
+      return;
+    }
+    const newCast: Omit<CastingRecord, "id" | "loss"> & { isPending?: boolean } = {
+      date: new Date().toISOString().substring(0, 10),
+      time: new Date().toTimeString().substring(0, 5),
+      kar: roll.damagedWeight,
+      notes: `إرجاع رايش وتالف وعجز السحب والتفجير (${roll.id}) لإعادة الصهر والسبك`,
+      isPending: true,
+      beforeImage: roll.damagedImage,
+    };
+    handleAddCasting(newCast);
+    setActiveTab("casting");
+    alert(`♻️ تم ترحيل رايش وتالف السحب والدرفلة (وزن: ${roll.damagedWeight.toFixed(3)}غ) تلقائياً لإعادة صهره وسبكه كسر من جديد!`);
   };
 
   // Export JSON Backup
@@ -549,6 +770,8 @@ export default function App() {
               onAddRecord={handleAddCasting}
               onDeleteRecord={handleDeleteCasting}
               onUpdateRecord={handleUpdateCasting}
+              onPromoteToTree={handlePromoteCastingToTree}
+              onPromoteToRolling={handlePromoteCastingToRolling}
             />
           )}
 
@@ -558,6 +781,9 @@ export default function App() {
               onAddRecord={handleAddTreeCasting}
               onDeleteRecord={handleDeleteTreeCasting}
               onUpdateRecord={handleUpdateTreeCasting}
+              onPromoteToRolling={handlePromoteTreeToRolling}
+              onPromoteToProduction={handlePromoteTreeToProduction}
+              onPromoteScrapToCasting={handlePromoteTreeScrapToCasting}
             />
           )}
 
@@ -567,6 +793,8 @@ export default function App() {
               onAddRecord={handleAddRolling}
               onDeleteRecord={handleDeleteRolling}
               onUpdateRecord={handleUpdateRolling}
+              onPromoteToProduction={handlePromoteRollingToProduction}
+              onPromoteScrapToCasting={handlePromoteRollingScrapToCasting}
             />
           )}
 
@@ -575,6 +803,7 @@ export default function App() {
               records={productionRecords}
               onAddRecord={handleAddProduction}
               onDeleteRecord={handleDeleteProduction}
+              onUpdateRecord={handleUpdateProduction}
             />
           )}
 

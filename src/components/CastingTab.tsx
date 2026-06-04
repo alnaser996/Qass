@@ -1,12 +1,22 @@
 import React, { useState } from "react";
 import { CastingRecord } from "../types";
-import { FilePlus2, Trash2, Calendar, Scale, Hammer, Search, Clock, CheckCircle2, AlertCircle, Eye, EyeOff, UploadCloud, XCircle } from "lucide-react";
+import { FilePlus2, Trash2, Calendar, Scale, Hammer, Search, Clock, CheckCircle2, AlertCircle, Eye, EyeOff, UploadCloud, XCircle, TreePine, Layers, Edit } from "lucide-react";
 
 interface CastingTabProps {
   records: CastingRecord[];
   onAddRecord: (record: Omit<CastingRecord, "id" | "loss"> & { isPending?: boolean }) => void;
   onDeleteRecord: (id: string) => void;
-  onUpdateRecord: (id: string, sabba: number, notes?: string, afterImage?: string) => void;
+  onUpdateRecord: (
+    id: string,
+    kar: number,
+    sabba?: number,
+    notes?: string,
+    afterImage?: string,
+    date?: string,
+    time?: string
+  ) => void;
+  onPromoteToTree?: (id: string) => void;
+  onPromoteToRolling?: (id: string) => void;
 }
 
 export const CastingTab: React.FC<CastingTabProps> = ({
@@ -14,6 +24,8 @@ export const CastingTab: React.FC<CastingTabProps> = ({
   onAddRecord,
   onDeleteRecord,
   onUpdateRecord,
+  onPromoteToTree,
+  onPromoteToRolling,
 }) => {
   // Current registration steps inside form panel
   const [formMode, setFormMode] = useState<"before" | "after" | "both">("before");
@@ -140,7 +152,9 @@ export const CastingTab: React.FC<CastingTabProps> = ({
       return;
     }
 
-    onUpdateRecord(selectedPendingId, parsedUpSabba, afterFormNotes.trim(), afterFormImage);
+    const pendingItem = records.find(r => r.id === selectedPendingId);
+    const originalKar = pendingItem ? pendingItem.kar : 0;
+    onUpdateRecord(selectedPendingId, originalKar, parsedUpSabba, afterFormNotes.trim(), afterFormImage);
     
     setSelectedPendingId("");
     setAfterFormSabba("");
@@ -165,12 +179,64 @@ export const CastingTab: React.FC<CastingTabProps> = ({
       return;
     }
     if (updatingRecordId) {
-      onUpdateRecord(updatingRecordId, parsedUpSabba, updatingNotes.trim(), updatingAfterImage);
+      const updatingRecord = records.find(r => r.id === updatingRecordId);
+      const originalKar = updatingRecord ? updatingRecord.kar : 0;
+      onUpdateRecord(updatingRecordId, originalKar, parsedUpSabba, updatingNotes.trim(), updatingAfterImage);
       setUpdatingRecordId(null);
       setUpdatingSabba("");
       setUpdatingNotes("");
       setUpdatingAfterImage("");
     }
+  };
+
+  // General Edit Modal State (Allows editing absolutely anything including Kar and Sabba)
+  const [editingRecord, setEditingRecord] = useState<CastingRecord | null>(null);
+  const [editingKar, setEditingKar] = useState<string>("");
+  const [editingSabba, setEditingSabba] = useState<string>("");
+  const [editingDate, setEditingDate] = useState<string>("");
+  const [editingTime, setEditingTime] = useState<string>("");
+  const [editingNotes, setEditingNotes] = useState<string>("");
+  const [editingAfterImage, setEditingAfterImage] = useState<string>("");
+
+  const handleOpenGeneralEdit = (record: CastingRecord) => {
+    setEditingRecord(record);
+    setEditingKar(String(record.kar));
+    setEditingSabba(record.sabba !== undefined ? String(record.sabba) : "");
+    setEditingDate(record.date);
+    setEditingTime(record.time || "");
+    setEditingNotes(record.notes || "");
+    setEditingAfterImage(record.afterImage || "");
+  };
+
+  const handleSaveGeneralEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRecord) return;
+    
+    const parsedKarVal = parseFloat(editingKar) || 0;
+    if (parsedKarVal <= 0) {
+      alert("الرجاء إدخال وزن كسر (القبل) صحيح أكبر من الصفر");
+      return;
+    }
+
+    const hasSabba = editingSabba.trim() !== "";
+    const parsedSabbaVal = hasSabba ? parseFloat(editingSabba) : undefined;
+    if (hasSabba && (parsedSabbaVal === undefined || parsedSabbaVal <= 0)) {
+      alert("الرجاء إدخال وزن صبة ناتجة صحيح أو تركه فارغاً");
+      return;
+    }
+
+    onUpdateRecord(
+      editingRecord.id,
+      parsedKarVal,
+      parsedSabbaVal,
+      editingNotes.trim(),
+      editingAfterImage,
+      editingDate,
+      editingTime
+    );
+
+    setEditingRecord(null);
+    alert("تم تعديل السجل وتحديث الأوزان وعمليات الحساب بنجاح! ⚖️");
   };
 
   // Pending records list for dropdown
@@ -598,7 +664,7 @@ export const CastingTab: React.FC<CastingTabProps> = ({
       </div>
 
       {/* Tables Column */}
-      <div className="lg:col-span-7 xl:col-span-8 space-y-4">
+      <div className="lg:col-span-12 xl:col-span-8 space-y-4">
         {/* Search Header */}
         <div className="bg-[#141414] p-4 rounded-2xl border border-[#222] flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="relative w-full sm:w-72">
@@ -622,7 +688,8 @@ export const CastingTab: React.FC<CastingTabProps> = ({
             <table className="w-full text-right text-xs sm:text-sm">
               <thead className="bg-[#181818] border-b border-[#222] text-[#888] text-xs">
                 <tr>
-                  <th className="px-3 py-3 text-center font-bold">حذف</th>
+                  <th className="px-3 py-3 text-center font-bold">الإجراءات</th>
+                  <th className="px-3 py-3 text-center font-bold">الترحيل والمرحلة التالية</th>
                   <th className="px-3 py-3 text-center font-bold">صور السبيكة</th>
                   <th className="px-3 py-3 font-bold">ملاحظات الصهر</th>
                   <th className="px-3 py-3 text-center font-bold">% نسبة النقيصة</th>
@@ -635,7 +702,7 @@ export const CastingTab: React.FC<CastingTabProps> = ({
               <tbody className="divide-y divide-[#222]">
                 {filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12 text-[#666] text-xs">
+                    <td colSpan={9} className="text-center py-12 text-[#666] text-xs">
                       لا توجد سجلات سبك وصهر مدخلة حالياً. استخدم لوحة التسجيل لبدء الجرد.
                     </td>
                   </tr>
@@ -648,14 +715,56 @@ export const CastingTab: React.FC<CastingTabProps> = ({
                     
                     return (
                       <tr key={record.id} className={`hover:bg-[#1a1a1a]/40 transition-colors ${isPending ? 'bg-amber-950/5 border-r-2 border-r-amber-500/50' : ''}`}>
-                        {/* Action delete */}
+                        {/* Action delete & edit */}
                         <td className="px-3 py-4 text-center">
-                          <button
-                            onClick={() => onDeleteRecord(record.id)}
-                            className="p-1 text-[#555] hover:text-rose-400 rounded-lg hover:bg-rose-950/20 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => handleOpenGeneralEdit(record)}
+                              className="p-1 text-[#555] hover:text-[#C5A028] rounded-lg hover:bg-[#C5A028]/10 transition-colors cursor-pointer"
+                              title="تعديل الأوزان والسجل"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => onDeleteRecord(record.id)}
+                              className="p-1 text-[#555] hover:text-rose-400 rounded-lg hover:bg-rose-950/20 transition-colors cursor-pointer"
+                              title="حذف السجل"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Workflow promotion */}
+                        <td className="px-2 py-4 text-center">
+                          {isPending ? (
+                            <span className="text-[10px] text-amber-500 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 animate-pulse">⏳ بانتظار الصبة</span>
+                          ) : (
+                            <div className="flex justify-center items-center gap-1.5">
+                              {onPromoteToTree && (
+                                <button
+                                  type="button"
+                                  onClick={() => onPromoteToTree(record.id)}
+                                  className="flex items-center gap-1 text-[10px] font-black bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-neutral-950 px-2 py-1 rounded-md border border-emerald-500/20 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                                  title="ترحيل السبيكة لصب الشجرة الشمعية"
+                                >
+                                  <TreePine className="w-3 h-3" />
+                                  <span>الشجرة 🌳</span>
+                                </button>
+                              )}
+                              {onPromoteToRolling && (
+                                <button
+                                  type="button"
+                                  onClick={() => onPromoteToRolling(record.id)}
+                                  className="flex items-center gap-1 text-[10px] font-black bg-cyan-500/10 hover:bg-cyan-500 text-cyan-405 hover:text-neutral-950 px-2 py-1 rounded-md border border-cyan-500/20 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                                  title="ترحيل السبيكة للدرفلة والأحماض"
+                                >
+                                  <Layers className="w-3 h-3" />
+                                  <span>الدرفلة 🌀</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </td>
 
                         {/* Double Image Preview column */}
@@ -762,7 +871,7 @@ export const CastingTab: React.FC<CastingTabProps> = ({
               {records.length > 0 && (
                 <tfoot className="bg-[#0f0f0f] divide-y divide-[#222] text-[#fff] text-xs">
                   <tr className="font-bold border-t border-[#222]">
-                    <td className="px-3 py-3 text-center text-[#C5A028]" colSpan={2}>المجموع النهائي</td>
+                    <td className="px-3 py-3 text-center text-[#C5A028]" colSpan={3}>المجموع النهائي</td>
                     <td className="px-3 py-3 text-[#777]">ملخص جرد صب وصهر الذهب عيار ٢١</td>
                     <td className="px-3 py-3 text-center font-mono text-[#C5A028]">
                       {(Math.abs(totalLoss) / totalKar * 100).toFixed(2)}% <span className="text-[10px] text-[#888]">({totalLoss >= 0 ? "عجز كلي" : "وفر صافي"})</span>
@@ -876,6 +985,114 @@ export const CastingTab: React.FC<CastingTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setUpdatingRecordId(null)}
+                  className="py-2 px-4 bg-[#1a1a1a] hover:bg-[#252525] text-[#aaa] font-bold rounded-xl text-xs border border-neutral-800 cursor-pointer"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* General Edit Modal */}
+      {editingRecord && (
+        <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-[100] p-4 animate-fadeIn backdrop-blur-sm text-right" dir="rtl">
+          <div className="bg-[#0f0f0f] border border-[#222] rounded-2xl p-6 max-w-md w-full shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+            <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#C5A028] to-transparent opacity-80" />
+            
+            <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2 font-sans text-right">
+              <Edit className="w-5 h-5 text-[#C5A028]" /> تعديل أوزان وبيانات عملية الصهر والسبك
+            </h3>
+            <p className="text-[11px] text-[#888] mb-4 leading-relaxed font-sans text-right">
+              تعديل أوزان الوجبة، وزن الكسر المستلم (القبل) والصبة الناتجة (البعد)، الملاحظات والتاريخ.
+            </p>
+
+            <form onSubmit={handleSaveGeneralEdit} className="space-y-4">
+              {/* Date & Time */}
+              <div className="grid grid-cols-2 gap-3 text-right">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1 text-right">التاريخ</label>
+                  <input
+                    type="date"
+                    required
+                    value={editingDate}
+                    onChange={(e) => setEditingDate(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-2.5 py-2 text-xs font-mono text-center focus:border-[#C5A028] outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1 text-right">الوقت</label>
+                  <input
+                    type="time"
+                    required
+                    value={editingTime}
+                    onChange={(e) => setEditingTime(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-2.5 py-2 text-xs font-mono text-center focus:border-[#C5A028] outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Before Weight (kar) */}
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 text-right flex justify-between">
+                  <span>استلام الكسر القبل (غرام)</span>
+                  <span className="text-[10px] text-[#C5A028]">الوزن قبل الصهر</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.001"
+                    required
+                    value={editingKar}
+                    onChange={(e) => setEditingKar(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl pl-12 pr-4 py-2 text-sm font-mono text-left focus:border-[#C5A028] focus:ring-1 focus:outline-none"
+                  />
+                  <span className="absolute left-4 top-2 text-xs text-[#666] font-semibold">غرام</span>
+                </div>
+              </div>
+
+              {/* After Weight (sabba) */}
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 text-right flex justify-between">
+                  <span>وزن الصبة الناتجة البعد (غرام)</span>
+                  <span className="text-[10px] text-emerald-400">الوزن بعد الصهر</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.001"
+                    placeholder="اتركه فارغاً إذا كانت العملية معلقة"
+                    value={editingSabba}
+                    onChange={(e) => setEditingSabba(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl pl-12 pr-4 py-2 text-sm font-mono text-left focus:border-[#C5A028] focus:ring-1 focus:outline-none"
+                  />
+                  <span className="absolute left-4 top-2 text-xs text-[#666] font-semibold">غرام</span>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 text-right">ملاحظات الوجبة</label>
+                <textarea
+                  rows={2}
+                  placeholder="ملاحظات وتفاصيل الصهر..."
+                  value={editingNotes}
+                  onChange={(e) => setEditingNotes(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs text-right focus:border-[#C5A028] focus:ring-1 focus:outline-none resize-none"
+                />
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="submit"
+                  className="flex-grow py-2 px-4 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-neutral-950 font-black rounded-xl text-xs transition-all cursor-pointer shadow-md"
+                >
+                  حفظ وتأكيد التعديلات ⚖️
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingRecord(null)}
                   className="py-2 px-4 bg-[#1a1a1a] hover:bg-[#252525] text-[#aaa] font-bold rounded-xl text-xs border border-neutral-800 cursor-pointer"
                 >
                   إلغاء

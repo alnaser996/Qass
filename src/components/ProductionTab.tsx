@@ -1,17 +1,30 @@
 import React, { useState } from "react";
 import { ProductionRecord } from "../types";
-import { FilePlus2, Trash2, Calendar, Scale, Search, Users, ShieldCheck, UploadCloud, XCircle, EyeOff, Clock } from "lucide-react";
+import { FilePlus2, Trash2, Calendar, Scale, Search, Users, ShieldCheck, UploadCloud, XCircle, EyeOff, Clock, Edit } from "lucide-react";
 
 interface ProductionTabProps {
   records: ProductionRecord[];
   onAddRecord: (record: Omit<ProductionRecord, "id">) => void;
   onDeleteRecord: (id: string) => void;
+  onUpdateRecord?: (
+    id: string,
+    finalWeight: number,
+    piecesCount: number,
+    details: string,
+    receiverName: string,
+    notes?: string,
+    beforeImage?: string,
+    afterImage?: string,
+    date?: string,
+    time?: string
+  ) => void;
 }
 
 export const ProductionTab: React.FC<ProductionTabProps> = ({
   records,
   onAddRecord,
   onDeleteRecord,
+  onUpdateRecord,
 }) => {
   const [date, setDate] = useState<string>(new Date().toISOString().substring(0, 10));
   const [time, setTime] = useState<string>(() => {
@@ -29,6 +42,66 @@ export const ProductionTab: React.FC<ProductionTabProps> = ({
   // Before & After base64 image states
   const [beforeImage, setBeforeImage] = useState<string>("");
   const [afterImage, setAfterImage] = useState<string>("");
+
+  // General Edit Modal State
+  const [editingRecord, setEditingRecord] = useState<ProductionRecord | null>(null);
+  const [editingFinalWeight, setEditingFinalWeight] = useState<string>("");
+  const [editingPiecesCount, setEditingPiecesCount] = useState<string>("");
+  const [editingDetails, setEditingDetails] = useState<string>("");
+  const [editingReceiverName, setEditingReceiverName] = useState<string>("");
+  const [editingDate, setEditingDate] = useState<string>("");
+  const [editingTime, setEditingTime] = useState<string>("");
+  const [editingNotes, setEditingNotes] = useState<string>("");
+
+  const handleOpenGeneralEdit = (record: ProductionRecord) => {
+    setEditingRecord(record);
+    setEditingFinalWeight(String(record.finalWeight));
+    setEditingPiecesCount(String(record.piecesCount));
+    setEditingDetails(record.details || "");
+    setEditingReceiverName(record.receiverName || "");
+    setEditingDate(record.date);
+    setEditingTime(record.time || "");
+    setEditingNotes(record.notes || "");
+  };
+
+  const handleSaveGeneralEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRecord) return;
+
+    const parsedWeight = parseFloat(editingFinalWeight) || 0;
+    const parsedPieces = parseInt(editingPiecesCount, 10) || 0;
+
+    if (parsedWeight <= 0) {
+      alert("الرجاء إدخال وزن إنتاج نهائي صحيح أكبر من الصفر");
+      return;
+    }
+    if (parsedPieces <= 0) {
+      alert("الرجاء إدخال عدد قطع صحيح");
+      return;
+    }
+    if (!editingReceiverName.trim()) {
+      alert("الرجاء إدخال اسم المستلم");
+      return;
+    }
+
+    if (onUpdateRecord) {
+      onUpdateRecord(
+        editingRecord.id,
+        parsedWeight,
+        parsedPieces,
+        editingDetails.trim(),
+        editingReceiverName.trim(),
+        editingNotes.trim(),
+        editingRecord.beforeImage,
+        editingRecord.afterImage,
+        editingDate,
+        editingTime
+      );
+    }
+
+    setEditingRecord(null);
+    alert("تم تعديل سجل التسليم النهائي وتحديث جميع البيانات بنجاح! 🏆⚖️");
+  };
 
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -338,7 +411,7 @@ export const ProductionTab: React.FC<ProductionTabProps> = ({
             <table className="w-full text-right text-xs sm:text-sm">
               <thead className="bg-[#181818] border-b border-[#222] text-[#888] text-xs">
                 <tr>
-                  <th className="px-3 py-3.5 text-center font-bold w-12">حذف</th>
+                  <th className="px-3 py-3.5 text-center font-bold w-16">الإجراءات</th>
                   <th className="px-3 py-3 text-center font-bold">صور المعاينة</th>
                   <th className="px-3 py-3.5 font-bold">الموظف المستلم للعهدة</th>
                   <th className="px-3 py-3.5 font-bold">ملاحظات تسليم الوجبة</th>
@@ -365,14 +438,24 @@ export const ProductionTab: React.FC<ProductionTabProps> = ({
 
                     return (
                       <tr key={record.id} className="hover:bg-[#1a1a1a]/40 transition-colors">
-                        {/* Delete action */}
+                        {/* Actions: general edit and delete */}
                         <td className="px-3 py-4 text-center">
-                          <button
-                            onClick={() => onDeleteRecord(record.id)}
-                            className="p-1 text-[#555] hover:text-rose-400 rounded-lg hover:bg-rose-950/20"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => handleOpenGeneralEdit(record)}
+                              className="p-1 text-[#555] hover:text-[#C5A028] rounded-lg hover:bg-[#C5A028]/10 transition-colors cursor-pointer"
+                              title="تعديل الأوزان والسجل"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => onDeleteRecord(record.id)}
+                              className="p-1 text-[#555] hover:text-rose-400 rounded-lg hover:bg-rose-950/20 cursor-pointer"
+                              title="حذف السجل"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
 
                         {/* Pictures Preview Grid (قبل / بعد) */}
@@ -487,6 +570,132 @@ export const ProductionTab: React.FC<ProductionTabProps> = ({
             </button>
           </div>
           <p className="text-[#64748b] text-xs mt-3 text-center">اضغط خارج الإطار للتصغير والعودة للوحة الدفتر</p>
+        </div>
+      )}
+
+      {/* General Edit Modal */}
+      {editingRecord && (
+        <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-[100] p-4 animate-fadeIn backdrop-blur-sm text-right font-sans" dir="rtl">
+          <div className="bg-[#0f0f0f] border border-[#222] rounded-2xl p-6 max-w-md w-full shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+            <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#C5A028] to-transparent opacity-80" />
+            
+            <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2 font-sans text-right">
+              <Edit className="w-5 h-5 text-[#C5A028]" /> تعديل بيانات وجبة التسليم النهائية
+            </h3>
+            <p className="text-[11px] text-[#888] mb-4 leading-relaxed text-right">
+              تحديث الوزن الصافي الإجمالي، عدد القطع المسلّمة، اسم مستلم الوجبة، والملاحظات بدقة.
+            </p>
+
+            <form onSubmit={handleSaveGeneralEdit} className="space-y-4">
+              {/* Date & Time */}
+              <div className="grid grid-cols-2 gap-3 text-right">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1 text-right">التاريخ</label>
+                  <input
+                    type="date"
+                    required
+                    value={editingDate}
+                    onChange={(e) => setEditingDate(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-2.5 py-2 text-xs font-mono text-center focus:border-[#C5A028] outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1 text-right">الوقت</label>
+                  <input
+                    type="time"
+                    required
+                    value={editingTime}
+                    onChange={(e) => setEditingTime(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-2.5 py-2 text-xs font-mono text-center focus:border-[#C5A028] outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Final Weight */}
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 text-right flex justify-between">
+                  <span>الوزن الصافي الإجمالي (غرام)</span>
+                  <span className="text-[11px] text-emerald-400 font-bold font-mono">الوزن المسلّم للعهدة</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.001"
+                    required
+                    value={editingFinalWeight}
+                    onChange={(e) => setEditingFinalWeight(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl pl-12 pr-4 py-2 text-sm font-mono text-left focus:border-[#C5A028] outline-none"
+                  />
+                  <span className="absolute left-4 top-2 text-xs text-[#666] font-semibold">غرام</span>
+                </div>
+              </div>
+
+              {/* Pieces Count */}
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 text-right">عدد قطع الصقل الفاخر الكلي</label>
+                <input
+                  type="number"
+                  required
+                  value={editingPiecesCount}
+                  onChange={(e) => setEditingPiecesCount(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs text-center focus:border-[#C5A028] outline-none"
+                />
+              </div>
+
+              {/* Details of items */}
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 text-right">تفاصيل المشغولات عيار 21</label>
+                <input
+                  type="text"
+                  required
+                  value={editingDetails}
+                  onChange={(e) => setEditingDetails(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs text-right focus:border-[#C5A028] outline-none"
+                />
+              </div>
+
+              {/* Receiver name */}
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 text-right">الموظف المستلم</label>
+                <input
+                  type="text"
+                  required
+                  value={editingReceiverName}
+                  onChange={(e) => setEditingReceiverName(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs text-right focus:border-[#C5A028] outline-none"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 text-right">ملاحظات إضافية</label>
+                <textarea
+                  rows={2}
+                  placeholder="ملاحظات وتفاصيل التسليم..."
+                  value={editingNotes}
+                  onChange={(e) => setEditingNotes(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-1.5 text-xs text-right focus:border-[#C5A028] outline-none resize-none"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="submit"
+                  className="flex-grow py-2.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-neutral-950 font-black rounded-xl text-xs transition-all cursor-pointer shadow-md"
+                >
+                  حفظ وتأكيد التعديلات ⚖️
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingRecord(null)}
+                  className="py-2.5 px-4 bg-[#1a1a1a] hover:bg-[#252525] text-[#aaa] font-bold rounded-xl text-xs border border-neutral-800 cursor-pointer"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

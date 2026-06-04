@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { TreeCastingRecord } from "../types";
-import { FilePlus2, Trash2, Calendar, Scale, TreePine, Search, UploadCloud, Eye, EyeOff, XCircle, CheckCircle2, Clock, Info } from "lucide-react";
+import { FilePlus2, Trash2, Calendar, Scale, TreePine, Search, UploadCloud, Eye, EyeOff, XCircle, CheckCircle2, Clock, Info, Layers, Award, RefreshCcw, Edit } from "lucide-react";
 
 interface TreeCastingTabProps {
   records: TreeCastingRecord[];
@@ -8,17 +8,23 @@ interface TreeCastingTabProps {
   onDeleteRecord: (id: string) => void;
   onUpdateRecord: (
     id: string,
-    productionWeight: number,
-    damagedWeight: number,
-    productionCount: number,
-    productionDetails: string,
-    damagedCount: number,
-    damagedDetails: string,
+    inputWeight: number,
+    productionWeight?: number,
+    damagedWeight?: number,
+    productionCount?: number,
+    productionDetails?: string,
+    damagedCount?: number,
+    damagedDetails?: string,
     notes?: string,
     productionImage?: string,
     damagedImage?: string,
-    afterImage?: string
+    afterImage?: string,
+    date?: string,
+    time?: string
   ) => void;
+  onPromoteToRolling?: (id: string) => void;
+  onPromoteToProduction?: (id: string) => void;
+  onPromoteScrapToCasting?: (id: string) => void;
 }
 
 export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
@@ -26,6 +32,9 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
   onAddRecord,
   onDeleteRecord,
   onUpdateRecord,
+  onPromoteToRolling,
+  onPromoteToProduction,
+  onPromoteScrapToCasting,
 }) => {
   // Navigation for registration steps ("قبل صفحة بعد صفحة ומثل هسة")
   const [formMode, setFormMode] = useState<"before" | "after" | "both">("before");
@@ -204,8 +213,11 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
       return;
     }
 
+    const pendingItem = records.find(r => r.id === selectedPendingId);
+    const originalInputWeight = pendingItem ? pendingItem.inputWeight : 0;
     onUpdateRecord(
       selectedPendingId,
+      originalInputWeight,
       upProd,
       upDamag,
       prodCt,
@@ -259,8 +271,11 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
     }
 
     if (updatingRecordId) {
+      const updatingRecord = records.find(r => r.id === updatingRecordId);
+      const originalInputWeight = updatingRecord ? updatingRecord.inputWeight : 0;
       onUpdateRecord(
         updatingRecordId,
+        originalInputWeight,
         parsedUpProd,
         parsedUpDam,
         parsedUpProdCount,
@@ -274,6 +289,82 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
       );
       setUpdatingRecordId(null);
     }
+  };
+
+  // General Edit Modal State (Allows editing absolutely anything including InputWeight, ProductionWeight, and DamagedWeight)
+  const [editingRecord, setEditingRecord] = useState<TreeCastingRecord | null>(null);
+  const [editingInputWeight, setEditingInputWeight] = useState<string>("");
+  const [editingProductionWeight, setEditingProductionWeight] = useState<string>("");
+  const [editingDamagedWeight, setEditingDamagedWeight] = useState<string>("");
+  const [editingProductionCount, setEditingProductionCount] = useState<string>("");
+  const [editingProductionDetails, setEditingProductionDetails] = useState<string>("");
+  const [editingDamagedCount, setEditingDamagedCount] = useState<string>("");
+  const [editingDamagedDetails, setEditingDamagedDetails] = useState<string>("");
+  const [editingDate, setEditingDate] = useState<string>("");
+  const [editingTime, setEditingTime] = useState<string>("");
+  const [editingNotes, setEditingNotes] = useState<string>("");
+  const [editingProductionImage, setEditingProductionImage] = useState<string>("");
+  const [editingDamagedImage, setEditingDamagedImage] = useState<string>("");
+
+  const handleOpenGeneralEdit = (record: TreeCastingRecord) => {
+    setEditingRecord(record);
+    setEditingInputWeight(String(record.inputWeight));
+    setEditingProductionWeight(record.productionWeight !== undefined ? String(record.productionWeight) : "");
+    setEditingDamagedWeight(record.damagedWeight !== undefined ? String(record.damagedWeight) : "");
+    setEditingProductionCount(record.productionCount !== undefined ? String(record.productionCount) : "");
+    setEditingProductionDetails(record.productionDetails || "");
+    setEditingDamagedCount(record.damagedCount !== undefined ? String(record.damagedCount) : "");
+    setEditingDamagedDetails(record.damagedDetails || "");
+    setEditingDate(record.date);
+    setEditingTime(record.time || "");
+    setEditingNotes(record.notes || "");
+    setEditingProductionImage(record.productionImage || "");
+    setEditingDamagedImage(record.damagedImage || "");
+  };
+
+  const handleSaveGeneralEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRecord) return;
+
+    const parsedInputVal = parseFloat(editingInputWeight) || 0;
+    if (parsedInputVal <= 0) {
+      alert("الرجاء إدخال وزن مدخل للشجرة صحيح أكبر من الصفر");
+      return;
+    }
+
+    const hasProd = editingProductionWeight.trim() !== "";
+    const parsedProdVal = hasProd ? parseFloat(editingProductionWeight) : undefined;
+    if (hasProd && (parsedProdVal === undefined || parsedProdVal < 0)) {
+      alert("الرجاء إدخال وزن إنتاج صافي صحيح");
+      return;
+    }
+
+    const hasDamaged = editingDamagedWeight.trim() !== "";
+    const parsedDamagedVal = hasDamaged ? parseFloat(editingDamagedWeight) : undefined;
+    if (hasDamaged && (parsedDamagedVal === undefined || parsedDamagedVal < 0)) {
+      alert("الرجاء إدخال وزن تالف شمع وزوائد صحيح");
+      return;
+    }
+
+    onUpdateRecord(
+      editingRecord.id,
+      parsedInputVal,
+      parsedProdVal,
+      parsedDamagedVal,
+      editingProductionCount ? parseInt(editingProductionCount) : undefined,
+      editingProductionDetails.trim(),
+      editingDamagedCount ? parseInt(editingDamagedCount) : undefined,
+      editingDamagedDetails.trim(),
+      editingNotes.trim(),
+      editingProductionImage,
+      editingDamagedImage,
+      editingProductionImage,
+      editingDate,
+      editingTime
+    );
+
+    setEditingRecord(null);
+    alert("تم تعديل سجل الشجرة وتحديث جميع الأوزان والنسب بنجاح! 🌳");
   };
 
   // Active Pending tree castings
@@ -780,7 +871,8 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
             <table className="w-full text-right text-xs sm:text-sm">
               <thead className="bg-[#181818] border-b border-[#222] text-[#888] text-xs">
                 <tr>
-                  <th className="px-3 py-3 text-center font-bold">حذف</th>
+                  <th className="px-3 py-3 text-center font-bold">الإجراءات</th>
+                  <th className="px-3 py-3 text-center font-bold">الترحيل والمرحلة التالية</th>
                   <th className="px-3 py-3 text-center font-bold">صور المعاينة</th>
                   <th className="px-3 py-3 font-bold">مخرجات الإنتاج السالم والتالف</th>
                   <th className="px-3 py-3 text-center font-bold">% نسبة العجز</th>
@@ -794,7 +886,7 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
               <tbody className="divide-y divide-[#222]">
                 {filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-12 text-[#666] text-xs">
+                    <td colSpan={10} className="text-center py-12 text-[#666] text-xs">
                       لا توجد سجلات صب فاكيوم مدخلة حالياً. استخدم اللوحة الجانبية لبدء التتبع.
                     </td>
                   </tr>
@@ -806,14 +898,69 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
                     
                     return (
                       <tr key={record.id} className={`hover:bg-[#1a1a1a]/40 transition-colors ${isPending ? 'bg-amber-950/5 border-r-2 border-r-amber-500/50' : ''}`}>
-                        {/* Delete action */}
+                        {/* Actions: general edit and delete */}
                         <td className="px-3 py-4 text-center">
-                          <button
-                            onClick={() => onDeleteRecord(record.id)}
-                            className="p-1 text-[#555] hover:text-rose-400 rounded-lg hover:bg-rose-950/20"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => handleOpenGeneralEdit(record)}
+                              className="p-1 text-[#555] hover:text-[#C5A028] rounded-lg hover:bg-[#C5A028]/10 transition-colors cursor-pointer"
+                              title="تعديل الأوزان والسجل"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => onDeleteRecord(record.id)}
+                              className="p-1 text-[#555] hover:text-rose-400 rounded-lg hover:bg-rose-950/20 cursor-pointer"
+                              title="حذف السجل"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Automatic promotions */}
+                        <td className="px-2 py-4 text-center">
+                          {isPending ? (
+                            <span className="text-[10px] text-amber-500 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 animate-pulse">⏳ في جبس الشجرة</span>
+                          ) : (
+                            <div className="flex flex-col justify-center items-center gap-1">
+                              <div className="flex items-center gap-1">
+                                {onPromoteToRolling && record.productionWeight !== undefined && record.productionWeight > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onPromoteToRolling(record.id)}
+                                    className="flex items-center gap-0.5 text-[9px] font-bold bg-cyan-500/10 hover:bg-cyan-500 text-cyan-405 hover:text-neutral-950 px-1.5 py-1 rounded transition-all cursor-pointer"
+                                    title="ترحيل مشغولات الإنتاج الصافية لقسم التحميض والفاكيوم"
+                                  >
+                                    <Layers className="w-2.5 h-2.5" />
+                                    <span>الدرفلة 🌀</span>
+                                  </button>
+                                )}
+                                {onPromoteToProduction && record.productionWeight !== undefined && record.productionWeight > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onPromoteToProduction(record.id)}
+                                    className="flex items-center gap-0.5 text-[9px] font-bold bg-amber-500/10 hover:bg-[#C5A028] text-amber-400 hover:text-neutral-950 px-1.5 py-1 rounded transition-all cursor-pointer"
+                                    title="ترحيل المشغولات النهائية مباشرة للمعرض الصنع المعقم"
+                                  >
+                                    <Award className="w-2.5 h-2.5" />
+                                    <span>تسليم 🏆</span>
+                                  </button>
+                                )}
+                              </div>
+                              {onPromoteScrapToCasting && record.damagedWeight !== undefined && record.damagedWeight > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => onPromoteScrapToCasting(record.id)}
+                                  className="flex items-center gap-0.5 text-[8px] font-bold bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white px-1.5 py-0.5 rounded transition-all cursor-pointer w-full justify-center"
+                                  title="ترحيل تالف ورايش الشمع لإعادة الصهر والسبك عيار ٢١"
+                                >
+                                  <RefreshCcw className="w-2 h-2" />
+                                  <span>تدوير التالف ♻️</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </td>
 
                         {/* Pictures Preview Grid (قبل / إنتاج / تالف) */}
@@ -951,7 +1098,7 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
               {records.length > 0 && (
                 <tfoot className="bg-[#0f0f0f] divide-y divide-[#222] text-[#fff] text-xs">
                   <tr className="font-bold border-t border-[#222]">
-                    <td className="px-3 py-3 text-center text-[#C5A028]" colSpan={2}>المجموع الشامل</td>
+                    <td className="px-3 py-3 text-center text-[#C5A028]" colSpan={3}>المجموع الشامل</td>
                     <td className="px-3 py-3 text-[#777]">ملخص جرد صب وتصفية أشجار الذهب عيار ٢١</td>
                     <td className="px-3 py-3 text-center font-mono text-[#C5A028]">
                       {((totalLoss / totalInput) * 100).toFixed(2)}% <span className="text-[9px] text-[#666]">(عجز كلي)</span>
@@ -1140,6 +1287,184 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
                   type="button"
                   onClick={() => setUpdatingRecordId(null)}
                   className="py-2 px-4 bg-[#1a1a1a] hover:bg-[#252525] text-[#aaa] font-bold rounded-xl text-xs border border-neutral-800 cursor-pointer"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* General Edit Modal */}
+      {editingRecord && (
+        <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-[100] p-4 animate-fadeIn backdrop-blur-sm text-right font-sans" dir="rtl">
+          <div className="bg-[#0f0f0f] border border-[#222] rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+            <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-[#C5A028] to-transparent opacity-80" />
+            
+            <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2 font-sans text-right">
+              <Edit className="w-5 h-5 text-[#C5A028]" /> تعديل أوزان وبيانات صب الشجرة والفاكيوم
+            </h3>
+            <p className="text-[11px] text-[#888] mb-4 leading-relaxed text-right">
+              تصفح وتحديث الأوزان المسجلة مسبقاً، تفاصيل العجز والوفر والملاحظات الكاملة.
+            </p>
+
+            <form onSubmit={handleSaveGeneralEdit} className="space-y-4">
+              {/* Date & Time */}
+              <div className="grid grid-cols-2 gap-3 text-right">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1 text-right">التاريخ</label>
+                  <input
+                    type="date"
+                    required
+                    value={editingDate}
+                    onChange={(e) => setEditingDate(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-2.5 py-2 text-xs font-mono text-center focus:border-[#C5A028] outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1 text-right">الوقت</label>
+                  <input
+                    type="time"
+                    required
+                    value={editingTime}
+                    onChange={(e) => setEditingTime(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-2.5 py-2 text-xs font-mono text-center focus:border-[#C5A028] outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Input Weight (الوزن المشحون) */}
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 text-right flex justify-between">
+                  <span>الوزن المشحون القبل (غرام)</span>
+                  <span className="text-[11px] text-amber-500 font-bold font-mono">الوزن قبل الصب</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.001"
+                    required
+                    value={editingInputWeight}
+                    onChange={(e) => setEditingInputWeight(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl pl-12 pr-4 py-2 text-sm font-mono text-left focus:border-[#C5A028] outline-none"
+                  />
+                  <span className="absolute left-4 top-2 text-xs text-[#666] font-semibold">غرام</span>
+                </div>
+              </div>
+
+              {/* Double Column for Production and Damaged weights */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Production Weight */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1 text-right flex justify-between">
+                    <span>وزن الإنتاج الصافي</span>
+                    <span className="text-[10px] text-emerald-400">البعد</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.001"
+                      placeholder="غير معبأ"
+                      value={editingProductionWeight}
+                      onChange={(e) => setEditingProductionWeight(e.target.value)}
+                      className="w-full text-white bg-[#141414] border border-[#222] rounded-xl pl-10 pr-3 py-2 text-xs font-mono text-left focus:border-[#C5A028] outline-none"
+                    />
+                    <span className="absolute left-2.5 top-2.5 text-[10px] text-[#555]">جم</span>
+                  </div>
+                </div>
+
+                {/* Damaged Weight */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1 text-right flex justify-between">
+                    <span>وزن التالف والخردة</span>
+                    <span className="text-[10px] text-rose-400">البعد</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.001"
+                      placeholder="غير معبأ"
+                      value={editingDamagedWeight}
+                      onChange={(e) => setEditingDamagedWeight(e.target.value)}
+                      className="w-full text-white bg-[#141414] border border-[#222] rounded-xl pl-10 pr-3 py-2 text-xs font-mono text-left focus:border-[#C5A028] outline-none"
+                    />
+                    <span className="absolute left-2.5 top-2.5 text-[10px] text-[#555]">جم</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Double Column for Counts */}
+              <div className="grid grid-cols-2 gap-3 text-right">
+                {/* Production Count */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1 text-right">عدد قطع الإنتاج</label>
+                  <input
+                    type="number"
+                    value={editingProductionCount}
+                    onChange={(e) => setEditingProductionCount(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-1.5 text-xs text-center focus:border-[#C5A028] outline-none"
+                  />
+                </div>
+
+                {/* Damaged Count */}
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1 text-right">عدد قطع الخردة التالفة</label>
+                  <input
+                    type="number"
+                    value={editingDamagedCount}
+                    onChange={(e) => setEditingDamagedCount(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-1.5 text-xs text-center focus:border-[#C5A028] outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Descriptions & Details */}
+              <div className="space-y-2 text-right">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1">بيانات وتفاصيل قطع الإنتاج السليم</label>
+                  <input
+                    type="text"
+                    value={editingProductionDetails}
+                    onChange={(e) => setEditingProductionDetails(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-1.5 text-xs text-right focus:border-[#C5A028] outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#aaa] mb-1">وصف عيوب قطع الخردة التالفة</label>
+                  <input
+                    type="text"
+                    value={editingDamagedDetails}
+                    onChange={(e) => setEditingDamagedDetails(e.target.value)}
+                    className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-1.5 text-xs text-right focus:border-[#C5A028] outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 text-right">الملاحظات العامة</label>
+                <textarea
+                  rows={2}
+                  placeholder="ملاحظات وتفاصيل تصفية الشجرة..."
+                  value={editingNotes}
+                  onChange={(e) => setEditingNotes(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-1.5 text-xs text-right focus:border-[#C5A028] outline-none resize-none"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="submit"
+                  className="flex-grow py-2.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-neutral-950 font-black rounded-xl text-xs transition-all cursor-pointer shadow-md"
+                >
+                  حفظ وتأكيد التعديلات ⚖️
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingRecord(null)}
+                  className="py-2.5 px-4 bg-[#1a1a1a] hover:bg-[#252525] text-[#aaa] font-bold rounded-xl text-xs border border-neutral-800 cursor-pointer"
                 >
                   إلغاء
                 </button>
