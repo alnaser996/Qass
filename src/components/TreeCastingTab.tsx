@@ -77,6 +77,7 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
 
   // Global UI utilities
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [showPromoted, setShowPromoted] = useState<boolean>(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
 
   // Modal updates (triggered via table rows)
@@ -372,6 +373,7 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
 
   // Filter lists
   const filteredRecords = records.filter((r) => {
+    if (!showPromoted && r.isPromoted) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -850,15 +852,26 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
       <div className="lg:col-span-7 xl:col-span-8 space-y-4">
         {/* Search bar */}
         <div className="bg-[#141414] p-4 rounded-2xl border border-[#222] flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="relative w-full sm:w-72">
-            <Search className="w-4 h-4 text-[#555] absolute right-3 top-3.5" />
-            <input
-              type="text"
-              placeholder="البحث بالوصف، التاريخ أو التالف..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full text-right text-white bg-[#181818] border border-[#222] rounded-xl pl-3 pr-9 py-2.5 text-xs focus:border-[#C5A028] outline-none"
-            />
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+            <div className="relative w-full sm:w-72">
+              <Search className="w-4 h-4 text-[#555] absolute right-3 top-3.5" />
+              <input
+                type="text"
+                placeholder="البحث بالوصف، التاريخ أو التالف..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full text-right text-white bg-[#181818] border border-[#222] rounded-xl pl-3 pr-9 py-2.5 text-xs focus:border-[#C5A028] outline-none"
+              />
+            </div>
+            <label className="flex items-center gap-2 px-3 py-2 bg-[#181818] hover:bg-[#1f1f1f] border border-[#222] rounded-xl cursor-pointer select-none transition-colors text-[11px] text-[#aaa]">
+              <input
+                type="checkbox"
+                checked={showPromoted}
+                onChange={(e) => setShowPromoted(e.target.checked)}
+                className="accent-[#C5A028] h-3.5 w-3.5 rounded cursor-pointer"
+              />
+              <span>عرض السجلات المرحلة والأرشيف 📂</span>
+            </label>
           </div>
           <div className="text-xs text-[#888] font-medium">
             عرض <span className="text-[#C5A028] font-bold">{filteredRecords.length}</span> من أصل <span className="text-[#C5A028] font-bold">{records.length}</span> صبة شجرة شمعية
@@ -923,6 +936,11 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
                         <td className="px-2 py-4 text-center">
                           {isPending ? (
                             <span className="text-[10px] text-amber-500 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 animate-pulse">⏳ في جبس الشجرة</span>
+                          ) : record.isPromoted ? (
+                            <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 flex items-center justify-center gap-1 mx-auto w-fit" title="أرشيف - تم ترحيلها إلى المراحل اللاحقة">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              <span>مُرحّلة بالكامل 🚀</span>
+                            </span>
                           ) : (
                             <div className="flex flex-col justify-center items-center gap-1">
                               <div className="flex items-center gap-1">

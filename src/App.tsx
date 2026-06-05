@@ -481,6 +481,7 @@ export default function App() {
       alert("العملية لم تكتمل بعد أو غير موجودة لترحيلها!");
       return;
     }
+    const accumulatedImages = [cast.beforeImage, cast.afterImage].filter(Boolean) as string[];
     // Create new TreeCastingRecord as a pending first step
     const newTree: Omit<TreeCastingRecord, "id" | "loss"> & { isPending?: boolean } = {
       date: new Date().toISOString().substring(0, 10),
@@ -489,10 +490,17 @@ export default function App() {
       notes: `ترحيل تلقائي من سبيكة صب رقم (${cast.id}) - ملاحظة سابقة: ${cast.notes || "بلا"}`,
       isPending: true,
       beforeImage: cast.afterImage, // Pass the cast's after-image as the tree's before-image
+      previousImages: accumulatedImages,
     };
+
+    // Mark parent cast as promoted
+    const updatedCasting = castingRecords.map(c => c.id === castingId ? { ...c, isPromoted: true } : c);
+    setCastingRecords(updatedCasting);
+    saveToStorage("gold_loss_casting", updatedCasting);
+
     handleAddTreeCasting(newTree);
     setActiveTab("tree_casting");
-    alert(`🚀 تم ترحيل السبيكة (وزن: ${cast.sabba.toFixed(3)}غ) كأرضية لـ "صب الشجرة" تلقائياً بنجاح!`);
+    alert(`🚀 تم ترحيل السبيكة (وزن: ${cast.sabba.toFixed(3)}غ) كأرضية لـ "صب الشجرة" وتنزيلها بالكامل من جدول السبك!`);
   };
 
   const handlePromoteCastingToRolling = (castingId: string) => {
@@ -501,6 +509,7 @@ export default function App() {
       alert("العملية لم تكتمل بعد أو غير موجودة لترحيلها!");
       return;
     }
+    const accumulatedImages = [cast.beforeImage, cast.afterImage].filter(Boolean) as string[];
     // Create new RollingRecord as a pending first step
     const newRolling: Omit<RollingRecord, "id" | "loss"> & { isPending?: boolean } = {
       stageType: "bombing",
@@ -511,10 +520,17 @@ export default function App() {
       notes: `ترحيل تلقائي من سبيكة صب رقم (${cast.id})`,
       isPending: true,
       beforeImage: cast.afterImage,
+      previousImages: accumulatedImages,
     };
+
+    // Mark parent cast as promoted
+    const updatedCasting = castingRecords.map(c => c.id === castingId ? { ...c, isPromoted: true } : c);
+    setCastingRecords(updatedCasting);
+    saveToStorage("gold_loss_casting", updatedCasting);
+
     handleAddRolling(newRolling);
     setActiveTab("rolling");
-    alert(`🚀 تم ترحيل السبيكة (وزن: ${cast.sabba.toFixed(3)}غ) إلى قسم "التفجير والفاكيوم" تلقائياً بنجاح!`);
+    alert(`🚀 تم ترحيل السبيكة (وزن: ${cast.sabba.toFixed(3)}غ) كبداية تشغيل فرز تفجير وحوامض، وترحيلها من جدول السبك!`);
   };
 
   const handlePromoteTreeToRolling = (treeId: string) => {
@@ -523,6 +539,14 @@ export default function App() {
       alert("العملية غير صالحة للترحيل!");
       return;
     }
+    const accumulatedImages = [
+      ...(tree.previousImages || []),
+      tree.beforeImage,
+      tree.afterImage,
+      tree.productionImage,
+      tree.damagedImage,
+    ].filter(Boolean) as string[];
+
     const newRolling: Omit<RollingRecord, "id" | "loss"> & { isPending?: boolean } = {
       stageType: "bombing",
       date: new Date().toISOString().substring(0, 10),
@@ -533,10 +557,17 @@ export default function App() {
       notes: `ترحيل تلقائي من إنتاج صب الشجرة رقم (${tree.id})`,
       isPending: true,
       beforeImage: tree.productionImage || tree.afterImage,
+      previousImages: accumulatedImages,
     };
+
+    // Mark parent tree as promoted
+    const updatedTree = treeCastingRecords.map(t => t.id === treeId ? { ...t, isPromoted: true } : t);
+    setTreeCastingRecords(updatedTree);
+    saveToStorage("gold_loss_tree_casting", updatedTree);
+
     handleAddRolling(newRolling);
     setActiveTab("rolling");
-    alert(`🚀 تم ترحيل المشغولات الصالحة (وزن: ${tree.productionWeight.toFixed(3)}غ) تلقائياً إلى معالجة "التحميض والفاكيوم" بنجاح!`);
+    alert(`🚀 تم ترحيل مشغولات الشجرة (وزن: ${tree.productionWeight.toFixed(3)}غ) لقسم التفجير، وترحيل الشجرة من جدول التشغيل!`);
   };
 
   const handlePromoteTreeToProduction = (treeId: string) => {
@@ -545,6 +576,14 @@ export default function App() {
       alert("العملية غير صالحة للترحيل!");
       return;
     }
+    const accumulatedImages = [
+      ...(tree.previousImages || []),
+      tree.beforeImage,
+      tree.afterImage,
+      tree.productionImage,
+      tree.damagedImage,
+    ].filter(Boolean) as string[];
+
     const newProd: Omit<ProductionRecord, "id"> = {
       date: new Date().toISOString().substring(0, 10),
       time: new Date().toTimeString().substring(0, 5),
@@ -555,10 +594,17 @@ export default function App() {
       notes: `ترحيل تلقائي ومباشر من صب الشجرة رقم (${tree.id})`,
       beforeImage: tree.beforeImage,
       afterImage: tree.productionImage || tree.afterImage,
+      previousImages: accumulatedImages,
     };
+
+    // Mark parent tree as promoted
+    const updatedTree = treeCastingRecords.map(t => t.id === treeId ? { ...t, isPromoted: true } : t);
+    setTreeCastingRecords(updatedTree);
+    saveToStorage("gold_loss_tree_casting", updatedTree);
+
     handleAddProduction(newProd);
     setActiveTab("production");
-    alert(`🚀 تم ترحيل وتأكيد تسليم المشغولات (وزن: ${tree.productionWeight.toFixed(3)}غ) كمنتج فاخر جاهز للعرض!`);
+    alert(`🚀 تم تسليم الوجبة بنجاح للمعرض النهائي وحفظ كامل سجل الصور السابقة، وترحيلها من الشجرة!`);
   };
 
   const handlePromoteTreeScrapToCasting = (treeId: string) => {
@@ -587,6 +633,14 @@ export default function App() {
       alert("العملية غير صالحة للترحيل!");
       return;
     }
+    const accumulatedImages = [
+      ...(roll.previousImages || []),
+      roll.beforeImage,
+      roll.afterImage,
+      roll.image,
+      roll.damagedImage,
+    ].filter(Boolean) as string[];
+
     const newProd: Omit<ProductionRecord, "id"> = {
       date: new Date().toISOString().substring(0, 10),
       time: new Date().toTimeString().substring(0, 5),
@@ -597,6 +651,7 @@ export default function App() {
       notes: `ترحيل تلقائي من تفجير الأحماض رقم (${roll.id})`,
       beforeImage: roll.beforeImage,
       afterImage: roll.afterImage || roll.image,
+      previousImages: accumulatedImages,
     };
     
     // Add production record
@@ -608,7 +663,7 @@ export default function App() {
     saveToStorage("gold_loss_rolling", updated);
 
     setActiveTab("production");
-    alert(`🚀 تم ترحيل وتجهيز تسليم الوجبة المصفاة (وزن: ${roll.weightAfter.toFixed(3)}غ) إلى المعرض النهائي وحساب المخرجات!`);
+    alert(`🚀 تم تسليم الوجبة بنجاح للمعرض النهائي وحفظ كامل سجل الصور السابقة، وترحيلها من الحوامض والدرفلة!`);
   };
 
   const handlePromoteRollingScrapToCasting = (rollId: string) => {
@@ -650,6 +705,14 @@ export default function App() {
       return;
     }
 
+    const accumulatedImages = [
+      ...(roll.previousImages || []),
+      roll.beforeImage,
+      roll.afterImage,
+      roll.image,
+      roll.damagedImage,
+    ].filter(Boolean) as string[];
+
     const newRolling: Omit<RollingRecord, "id" | "loss"> & { isPending?: boolean } = {
       stageType: nextStage,
       date: new Date().toISOString().substring(0, 10),
@@ -660,6 +723,7 @@ export default function App() {
       notes: `ترحيل وتسلسل تلقائي لنفس الوجبة من مرحلة ${roll.stageType === "bombing" ? "التفجير والأحماض" : "التصليح اليدوي"}`,
       isPending: true,
       beforeImage: roll.afterImage || roll.image,
+      previousImages: accumulatedImages,
     };
 
     // Mark parent as isPromoted: true and add the new stage row in one atomic update
@@ -684,13 +748,23 @@ export default function App() {
     vacuumWeight: number,
     vacuumPieces: number,
     repairImage?: string,
-    vacuumImage?: string
+    vacuumImage?: string,
+    splitMainImage?: string
   ) => {
     const roll = rollingRecords.find(r => r.id === rollId);
     if (!roll || roll.isPending || !roll.weightAfter) {
       alert("العملية غير صالحة للتجزئة!");
       return;
     }
+
+    const accumulatedImages = [
+      ...(roll.previousImages || []),
+      roll.beforeImage,
+      roll.afterImage,
+      roll.image,
+      roll.damagedImage,
+      splitMainImage,
+    ].filter(Boolean) as string[];
 
     const itemsAddedMsg: string[] = [];
     const newRecordsToAdd: RollingRecord[] = [];
@@ -707,7 +781,8 @@ export default function App() {
         details: roll.details ? `جزء للتصليح - مفرع من وجبة (${roll.id}) - ${roll.details}` : `جزء للتصليح - مفرع من وجبة (${roll.id})`,
         notes: `تجزئة تلقائية لقطع تحتاج تصليح من وجبة التفجير (${roll.id})`,
         isPending: true,
-        beforeImage: repairImage || roll.afterImage || roll.image,
+        beforeImage: repairImage || splitMainImage || roll.afterImage || roll.image,
+        previousImages: accumulatedImages,
         loss: undefined,
       };
       newRecordsToAdd.push(newRepair);
@@ -726,15 +801,25 @@ export default function App() {
         details: roll.details ? `جزء للفاكيوم - مفرع من وجبة (${roll.id}) - ${roll.details}` : `جزء للفاكيوم - مفرع من وجبة (${roll.id})`,
         notes: `تجزئة تلقائية لقطع جاهزة مباشرة من وجبة التفجير (${roll.id})`,
         isPending: true,
-        beforeImage: vacuumImage || roll.afterImage || roll.image,
+        beforeImage: vacuumImage || splitMainImage || roll.afterImage || roll.image,
+        previousImages: accumulatedImages,
         loss: undefined,
       };
       newRecordsToAdd.push(newVacuum);
       itemsAddedMsg.push(`(${vacuumWeight.toFixed(3)}غ) بعدد (${vacuumPieces} قطع) لمرحلة الفاكيوم وبونزة 🌀`);
     }
 
-    // Mark parent as isPromoted: true and add the new split records
-    const updatedWithPromote = rollingRecords.map(r => r.id === rollId ? { ...r, isPromoted: true } : r);
+    // Mark parent as isPromoted: true, and assign the splitMainImage to its afterImage
+    const updatedWithPromote = rollingRecords.map(r => {
+      if (r.id === rollId) {
+        return { 
+          ...r, 
+          isPromoted: true,
+          afterImage: splitMainImage || r.afterImage || r.image
+        };
+      }
+      return r;
+    });
     const updated = [...newRecordsToAdd, ...updatedWithPromote];
     setRollingRecords(updated);
     saveToStorage("gold_loss_rolling", updated);

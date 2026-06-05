@@ -462,9 +462,27 @@ export const ProductionTab: React.FC<ProductionTabProps> = ({
                           </div>
                         </td>
 
-                        {/* Pictures Preview Grid (قبل / بعد) */}
+                        {/* Pictures Preview Grid (Before / After / Historic Stages) */}
                         <td className="px-2 py-3 text-center whitespace-nowrap">
                           <div className="flex justify-center items-center gap-1.5 mx-auto">
+                            {/* Previous Stages Images Filmstrip */}
+                            {record.previousImages && record.previousImages.length > 0 && (
+                              <div className="flex items-center gap-1 border-l border-[#222]/80 pl-1.5 ml-1 flex-row-reverse">
+                                {record.previousImages.map((imgStr, index) => (
+                                  <button
+                                    key={index}
+                                    type="button"
+                                    onClick={() => setZoomImage(imgStr)}
+                                    className="relative group w-7 h-7 rounded border border-[#C5A028]/40 overflow-hidden hover:border-[#C5A028] transition-colors"
+                                    title={`صورة الأرشيف من مرحلة سابقة (${index + 1})`}
+                                  >
+                                    <img src={imgStr} alt="أرشيف سابقة" className="w-full h-full object-cover transition-all" />
+                                    <span className="absolute inset-0 bg-yellow-950/75 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[7px] font-black text-[#C5A028]">سابق {index + 1}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
                             {/* Before Image */}
                             {record.beforeImage ? (
                               <button

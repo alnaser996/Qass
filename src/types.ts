@@ -9,6 +9,8 @@ export interface CastingRecord {
   isPending?: boolean; // هل العملية مسجلة (قبل) فقط وبانتظار (البعد)
   beforeImage?: string; // صورة كسر ومادة الذهب قبل الصهر والسبك
   afterImage?: string; // صورة السبيكة/الصبة الناتجة بعد الصهر
+  isPromoted?: boolean; // هل تم ترحيلها وتحويلها بالكامل للمرحلة التالية
+  previousImages?: string[]; // أرشيف الصور السابقة المتراكمة
 }
 
 export interface TreeCastingRecord {
@@ -29,6 +31,8 @@ export interface TreeCastingRecord {
   isPending?: boolean; // هل العملية مسجلة (قبل) وبانتظار نتائج الشجرة (البعد)
   beforeImage?: string; // صورة شجرة الشمع أو شحنة الذهب المدخل قبل الصب
   afterImage?: string; // صورة المشغولات النهائية المستخلصة من الشجرة
+  isPromoted?: boolean; // هل تم ترحيلها وتحويلها بالكامل للمرحلة التالية
+  previousImages?: string[]; // أرشيف الصور السابقة المتراكمة
 }
 
 export interface RollingRecord {
@@ -49,6 +53,7 @@ export interface RollingRecord {
   beforeImage?: string; // صورة القطع قبل بدء تشغيل الدرفلة/الأحماض
   afterImage?: string; // صورة القطع بعد إتمام الدرفلة والاستلام
   isPromoted?: boolean; // هل تم ترحيلها وتحويلها بالكامل للمرحلة التالية
+  previousImages?: string[]; // أرشيف الصور السابقة المتراكمة
 }
 
 export interface ProductionRecord {
@@ -63,6 +68,7 @@ export interface ProductionRecord {
   notes?: string; // ملاحظات عامة أو توثيقية
   beforeImage?: string; // صورة المنتجات قبل التجهيز النهائي والختم
   afterImage?: string; // صورة المنتجات النهائية قبل شحنها للمعرض
+  previousImages?: string[]; // قائمة الصور من المراحل السابقة (أرشيف كامل للمشغولة)
 }
 
 export interface FilterParams {

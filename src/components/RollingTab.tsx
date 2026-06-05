@@ -30,7 +30,8 @@ interface RollingTabProps {
     vacuumWeight: number,
     vacuumPieces: number,
     repairImage?: string,
-    vacuumImage?: string
+    vacuumImage?: string,
+    splitMainImage?: string
   ) => void;
 }
 
@@ -94,6 +95,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
   const [splitVacuumPieces, setSplitVacuumPieces] = useState<string>("");
   const [splitRepairImage, setSplitRepairImage] = useState<string>("");
   const [splitVacuumImage, setSplitVacuumImage] = useState<string>("");
+  const [splitMainImage, setSplitMainImage] = useState<string>("");
 
   // Modal updates (triggered via row action buttons)
   const [updatingRecordId, setUpdatingRecordId] = useState<string | null>(null);
@@ -112,7 +114,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
 
   const handleImageFile = (
     e: React.ChangeEvent<HTMLInputElement>,
-    type: "before" | "after" | "damaged" | "afterFormImg" | "afterFormDamImg" | "modalImg" | "modalDamImg" | "splitRepair" | "splitVacuum"
+    type: "before" | "after" | "damaged" | "afterFormImg" | "afterFormDamImg" | "modalImg" | "modalDamImg" | "splitRepair" | "splitVacuum" | "splitMain"
   ) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -128,6 +130,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
         else if (type === "modalDamImg") setUpDamagedImage(result);
         else if (type === "splitRepair") setSplitRepairImage(result);
         else if (type === "splitVacuum") setSplitVacuumImage(result);
+        else if (type === "splitMain") setSplitMainImage(result);
       };
       r.readAsDataURL(file);
     }
@@ -1568,9 +1571,37 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                 </div>
               </div>
 
+              {/* Main Split Photo Section */}
+              <div className="bg-[#181818] border border-amber-500/20 p-3.5 rounded-xl mb-4 space-y-2">
+                <span className="block text-[11px] font-bold text-[#C5A028]">📸 التقط صورة لعملية فرز وتجزيء الوجبة ككل (إجباري للتوثيق *):</span>
+                {splitMainImage ? (
+                  <div className="relative rounded-xl overflow-hidden border border-[#222] h-28 bg-[#121212]">
+                    <img src={splitMainImage} alt="Main split" className="w-full h-full object-contain" />
+                    <button
+                      type="button"
+                      onClick={() => setSplitMainImage("")}
+                      className="absolute top-1.5 right-1.5 p-1 bg-black/95 text-white rounded-full hover:bg-rose-950 transition-colors cursor-pointer"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center border border-dashed border-amber-500/30 hover:border-amber-500 rounded-xl p-4 text-center cursor-pointer bg-amber-500/5 hover:bg-amber-500/10 transition-colors">
+                    <Camera className="w-5 h-5 text-[#C5A028] animate-bounce" />
+                    <span className="text-[11px] text-[#C5A028] font-bold mt-1">إرفاق أو تصوير قطع الوجبة أثناء فرزها (صورة التجزيء) *</span>
+                    <span className="text-[9px] text-[#666] mt-0.5">ستستخدم هذه الصورة للتوثيق وتناقلها للمراحل الجديدة</span>
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageFile(e, "splitMain")} />
+                  </label>
+                )}
+              </div>
+
               <form 
                 onSubmit={(e) => {
                   e.preventDefault();
+                  if (!splitMainImage) {
+                    alert("⚠️ الرجاء التقاط أو إرفاق صورة لعملية التجزئة أولاً للتوثيق والاعتماد!");
+                    return;
+                  }
                   if (repairWNum < 0 || repairWNum > totalW + 0.0001) {
                     alert("وزن التصليح غير صحيح أو يتجاوز الوزن الإجمالي للوجبة!");
                     return;
@@ -1587,12 +1618,14 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                       parseFloat(remainingW.toFixed(3)), 
                       remainingP,
                       splitRepairImage || undefined,
-                      splitVacuumImage || undefined
+                      splitVacuumImage || undefined,
+                      splitMainImage || undefined
                     );
                   }
                   setSplitRecord(null);
                   setSplitRepairImage("");
                   setSplitVacuumImage("");
+                  setSplitMainImage("");
                 }} 
                 className="space-y-4"
               >
@@ -1722,6 +1755,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                       setSplitRecord(null);
                       setSplitRepairImage("");
                       setSplitVacuumImage("");
+                      setSplitMainImage("");
                     }}
                     className="py-2.5 px-4 bg-[#1a1a1a] hover:bg-[#252525] text-[#aaa] font-bold rounded-xl text-xs border border-neutral-800 cursor-pointer"
                   >
