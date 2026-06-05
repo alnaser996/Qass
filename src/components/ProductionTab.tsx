@@ -138,6 +138,10 @@ export const ProductionTab: React.FC<ProductionTabProps> = ({
       alert("الرجاء إدخال تفاصيل المشغولات");
       return;
     }
+    if (!afterImage) {
+      alert("⚠️ توثيق العهدة إلزامي بالتقاط صورة! الرجاء إرفاق أو تصوير قطعة الإنتاج النهائي عيار 21 لتتمكن من الضغط على حفظ وعرض العينة في الألبوم.");
+      return;
+    }
     if (!receiverName.trim()) {
       alert("الرجاء إدخال اسم الموظف المستلم");
       return;
@@ -307,16 +311,16 @@ export const ProductionTab: React.FC<ProductionTabProps> = ({
                 )}
               </div>
               <div>
-                <label className="block text-[9px] text-[#888] mb-1">صورة الإنتاج النهائي عيار 21</label>
+                <label className="block text-[9px] text-[#C5A028] font-bold mb-1">صورة الإنتاج النهائي لعيار 21 * <span className="text-rose-450 text-[8px] font-black">(مطلوب إجباري 📸)</span></label>
                 {afterImage ? (
                   <div className="relative border border-[#222] rounded-lg overflow-hidden h-14 bg-black">
                     <img src={afterImage} alt="بعد" className="w-full h-full object-cover" />
                     <button type="button" onClick={() => setAfterImage("")} className="absolute top-0.5 right-0.5 p-0.5 bg-black/80 text-white rounded-full"><XCircle className="w-3 h-3" /></button>
                   </div>
                 ) : (
-                  <label className="flex items-center justify-center gap-1 border border-dashed border-[#222] rounded-lg h-14 cursor-pointer bg-black text-[9px] text-[#666]">
-                    <UploadCloud className="w-4 h-4" />
-                    <span>صورة بعد</span>
+                  <label className="flex items-center justify-center gap-1 border border-dashed border-[#C5A028]/40 hover:border-[#C5A028] rounded-lg h-14 cursor-pointer bg-black text-[9px] text-[#C5A028] font-black transition-colors">
+                    <UploadCloud className="w-4 h-4 text-[#C5A028] animate-bounce" />
+                    <span>إرفاق صورة للمشغولات *</span>
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, "after")} />
                   </label>
                 )}

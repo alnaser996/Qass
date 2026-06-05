@@ -80,9 +80,10 @@ export const RollingTab: React.FC<RollingTabProps> = ({
   const [afterFormDamagedImage, setAfterFormDamagedImage] = useState<string>("");
   const [afterFormNotes, setAfterFormNotes] = useState<string>("");
 
-  // Search & Fitlers
+  // Search & Filters
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [filterStage, setFilterStage] = useState<"all" | "bombing" | "repair" | "vacuum">("all");
+  const [showPromoted, setShowPromoted] = useState<boolean>(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
 
   // Splitting batch modal state
@@ -369,6 +370,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
 
   // Filters output
   const filteredRecords = records.filter((r) => {
+    if (!showPromoted && r.isPromoted) return false;
     if (filterStage !== "all" && r.stageType !== filterStage) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
@@ -902,26 +904,38 @@ export const RollingTab: React.FC<RollingTabProps> = ({
             />
           </div>
 
-          {/* Sub stages filters tags */}
-          <div className="flex gap-1 overflow-x-auto w-full md:w-auto scrollbar-none">
-            {[
-              { id: "all", label: "📄 الكل" },
-              { id: "bombing", label: "💥 تفجير أحماض" },
-              { id: "repair", label: "🛠️ تصليح يدوي" },
-              { id: "vacuum", label: "🌀 غلق فاكيوم وبونزة" },
-            ].map((btn) => (
-              <button
-                key={btn.id}
-                onClick={() => setFilterStage(btn.id as any)}
-                className={`px-3 py-1.5 text-[10px] md:text-xs font-bold rounded-lg whitespace-nowrap cursor-pointer transition-all ${
-                  filterStage === btn.id
-                    ? "bg-[#C5A028] text-neutral-950 font-extrabold shadow-sm"
-                    : "text-neutral-400 border border-neutral-800 hover:text-white hover:bg-neutral-900"
-                }`}
-              >
-                {btn.label}
-              </button>
-            ))}
+          {/* Sub stages filters tags and toggle */}
+          <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+            <label className="flex items-center gap-2 cursor-pointer bg-neutral-900 border border-neutral-800/80 px-3 py-1.5 rounded-xl text-[10px] md:text-xs text-neutral-400 hover:text-white select-none transition-colors active:scale-95">
+              <input
+                type="checkbox"
+                checked={showPromoted}
+                onChange={(e) => setShowPromoted(e.target.checked)}
+                className="accent-[#C5A028] cursor-pointer w-3.5 h-3.5"
+              />
+              <span>عرض السجلات المرحلة والأرشيف 📂</span>
+            </label>
+
+            <div className="flex gap-1 overflow-x-auto w-full md:w-auto scrollbar-none">
+              {[
+                { id: "all", label: "📄 الكل" },
+                { id: "bombing", label: "💥 تفجير أحماض" },
+                { id: "repair", label: "🛠️ تصليح يدوي" },
+                { id: "vacuum", label: "🌀 غلق فاكيوم وبونزة" },
+              ].map((btn) => (
+                <button
+                  key={btn.id}
+                  onClick={() => setFilterStage(btn.id as any)}
+                  className={`px-3 py-1.5 text-[10px] md:text-xs font-bold rounded-lg whitespace-nowrap cursor-pointer transition-all ${
+                    filterStage === btn.id
+                      ? "bg-[#C5A028] text-neutral-950 font-extrabold shadow-sm"
+                      : "text-neutral-400 border border-neutral-800 hover:text-white hover:bg-neutral-900"
+                  }`}
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

@@ -48,6 +48,7 @@ export interface RollingRecord {
   isPending?: boolean; // هل العملية مسجلة (قبل) وبانتظار الوزن النهائي (البعد)
   beforeImage?: string; // صورة القطع قبل بدء تشغيل الدرفلة/الأحماض
   afterImage?: string; // صورة القطع بعد إتمام الدرفلة والاستلام
+  isPromoted?: boolean; // هل تم ترحيلها وتحويلها بالكامل للمرحلة التالية
 }
 
 export interface ProductionRecord {

@@ -598,7 +598,15 @@ export default function App() {
       beforeImage: roll.beforeImage,
       afterImage: roll.afterImage || roll.image,
     };
+    
+    // Add production record
     handleAddProduction(newProd);
+
+    // Update parent roll to isPromoted: true
+    const updated = rollingRecords.map(r => r.id === rollId ? { ...r, isPromoted: true } : r);
+    setRollingRecords(updated);
+    saveToStorage("gold_loss_rolling", updated);
+
     setActiveTab("production");
     alert(`🚀 تم ترحيل وتجهيز تسليم الوجبة المصفاة (وزن: ${roll.weightAfter.toFixed(3)}غ) إلى المعرض النهائي وحساب المخرجات!`);
   };
@@ -654,7 +662,18 @@ export default function App() {
       beforeImage: roll.afterImage || roll.image,
     };
 
-    handleAddRolling(newRolling);
+    // Mark parent as isPromoted: true and add the new stage row in one atomic update
+    const updatedWithPromote = rollingRecords.map(r => r.id === rollId ? { ...r, isPromoted: true } : r);
+    const computedLoss = newRolling.isPending ? undefined : newRolling.weightBefore - ((newRolling.weightAfter ?? 0) + (newRolling.damagedWeight || 0));
+    const newRecord: RollingRecord = {
+      ...newRolling,
+      id: `roll-${Date.now()}`,
+      loss: computedLoss,
+    };
+    const updated = [newRecord, ...updatedWithPromote];
+    setRollingRecords(updated);
+    saveToStorage("gold_loss_rolling", updated);
+
     alert(`🚀 تم تحويل الوجبة بنجاح وبشكل متسلسل لمرحلة (${stageName}) بقيمة وزن مدخل (${roll.weightAfter.toFixed(3)}غ)!`);
   };
 
@@ -674,10 +693,12 @@ export default function App() {
     }
 
     const itemsAddedMsg: string[] = [];
+    const newRecordsToAdd: RollingRecord[] = [];
 
     // Add Repair segment if there's any weight
     if (repairWeight > 0) {
-      const newRepair: Omit<RollingRecord, "id"> = {
+      const newRepair: RollingRecord = {
+        id: `roll-rep-${Date.now()}`,
         stageType: "repair",
         date: new Date().toISOString().substring(0, 10),
         time: new Date().toTimeString().substring(0, 5),
@@ -687,30 +708,36 @@ export default function App() {
         notes: `تجزئة تلقائية لقطع تحتاج تصليح من وجبة التفجير (${roll.id})`,
         isPending: true,
         beforeImage: repairImage || roll.afterImage || roll.image,
+        loss: undefined,
       };
-      // We directly add it using handleAddRolling
-      handleAddRolling(newRepair);
+      newRecordsToAdd.push(newRepair);
       itemsAddedMsg.push(`(${repairWeight.toFixed(3)}غ) بعدد (${repairPieces} قطع) لمرحلة التصليح اليدوي 🛠️`);
     }
 
     // Add Vacuum segment if there's any weight
     if (vacuumWeight > 0) {
-      setTimeout(() => {
-        const newVacuum: Omit<RollingRecord, "id"> = {
-          stageType: "vacuum",
-          date: new Date().toISOString().substring(0, 10),
-          time: new Date().toTimeString().substring(0, 5),
-          weightBefore: vacuumWeight,
-          piecesCount: vacuumPieces,
-          details: roll.details ? `جزء للفاكيوم - مفرع من وجبة (${roll.id}) - ${roll.details}` : `جزء للفاكيوم - مفرع من وجبة (${roll.id})`,
-          notes: `تجزئة تلقائية لقطع جاهزة مباشرة من وجبة التفجير (${roll.id})`,
-          isPending: true,
-          beforeImage: vacuumImage || roll.afterImage || roll.image,
-        };
-        handleAddRolling(newVacuum);
-      }, 50);
+      const newVacuum: RollingRecord = {
+        id: `roll-vac-${Date.now() + 1}`,
+        stageType: "vacuum",
+        date: new Date().toISOString().substring(0, 10),
+        time: new Date().toTimeString().substring(0, 5),
+        weightBefore: vacuumWeight,
+        piecesCount: vacuumPieces,
+        details: roll.details ? `جزء للفاكيوم - مفرع من وجبة (${roll.id}) - ${roll.details}` : `جزء للفاكيوم - مفرع من وجبة (${roll.id})`,
+        notes: `تجزئة تلقائية لقطع جاهزة مباشرة من وجبة التفجير (${roll.id})`,
+        isPending: true,
+        beforeImage: vacuumImage || roll.afterImage || roll.image,
+        loss: undefined,
+      };
+      newRecordsToAdd.push(newVacuum);
       itemsAddedMsg.push(`(${vacuumWeight.toFixed(3)}غ) بعدد (${vacuumPieces} قطع) لمرحلة الفاكيوم وبونزة 🌀`);
     }
+
+    // Mark parent as isPromoted: true and add the new split records
+    const updatedWithPromote = rollingRecords.map(r => r.id === rollId ? { ...r, isPromoted: true } : r);
+    const updated = [...newRecordsToAdd, ...updatedWithPromote];
+    setRollingRecords(updated);
+    saveToStorage("gold_loss_rolling", updated);
 
     alert(`🚀 تم تفرعة وتقسيم الوجبة بنجاح:
 ` + itemsAddedMsg.map(m => ` • ${m}`).join("\n"));
