@@ -6,6 +6,7 @@ export interface CastingRecord {
   sabba?: number; // Cast gold ingot (الصبة السبيكة)
   loss?: number; // Melt loss (عجز/نقص أو زيادة = كر - صبة)
   notes?: string;
+  varianceReason?: string; // سبب النقص أو الزيادة
   isPending?: boolean; // هل العملية مسجلة (قبل) فقط وبانتظار (البعد)
   beforeImage?: string; // صورة كسر ومادة الذهب قبل الصهر والسبك
   afterImage?: string; // صورة السبيكة/الصبة الناتجة بعد الصهر
@@ -21,6 +22,7 @@ export interface TreeCastingRecord {
   productionWeight?: number; // وزن الإنتاج الصافي (غرام)
   damagedWeight?: number; // وزن التالف / الخردة (غرام)
   loss?: number; // النقص أو الزيادة = الذهب المدخل - (الإنتاج + التالف)
+  varianceReason?: string; // سبب النقص أو الزيادة
   productionCount?: number; // عدد قطع الإنتاج
   productionDetails?: string; // تفاصيل قطع الإنتاج
   productionImage?: string; // صورة قطع الإنتاج (base64) - After Image
@@ -43,6 +45,7 @@ export interface RollingRecord {
   weightBefore: number; // الوزن قبل العملية
   weightAfter?: number; // الوزن بعد العملية
   loss?: number; // العجز = قبل - (بعد + التالف)
+  varianceReason?: string; // سبب النقص أو الزيادة
   damagedWeight?: number; // وزن التالف إن وجد
   damagedImage?: string; // صورة التالف
   piecesCount?: number; // عدد القطع

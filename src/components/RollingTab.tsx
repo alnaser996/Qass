@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { RollingRecord } from "../types";
-import { FilePlus2, Trash2, Calendar, Scale, Search, UploadCloud, Eye, EyeOff, XCircle, CheckCircle2, Clock, Layers, Flame, Wrench, ShieldAlert, Award, RefreshCcw, Edit, Camera } from "lucide-react";
+import { FilePlus2, Trash2, Calendar, Scale, Search, UploadCloud, Eye, EyeOff, XCircle, CheckCircle2, Clock, Layers, Flame, Wrench, ShieldAlert, Award, RefreshCcw, Edit, Camera, Wind } from "lucide-react";
 
 interface RollingTabProps {
   records: RollingRecord[];
@@ -18,11 +18,12 @@ interface RollingTabProps {
     damagedImage?: string,
     afterImage?: string,
     date?: string,
-    time?: string
+    time?: string,
+    varianceReason?: string
   ) => void;
+  onPromoteToNextStage?: (id: string) => void;
   onPromoteToProduction?: (id: string) => void;
   onPromoteScrapToCasting?: (id: string) => void;
-  onPromoteToNextStage?: (id: string) => void;
   onPromoteSplitStage?: (
     id: string,
     repairWeight: number,
@@ -33,6 +34,7 @@ interface RollingTabProps {
     vacuumImage?: string,
     splitMainImage?: string
   ) => void;
+  mode: "bombing" | "repair" | "vacuum";
 }
 
 export const RollingTab: React.FC<RollingTabProps> = ({
@@ -40,16 +42,32 @@ export const RollingTab: React.FC<RollingTabProps> = ({
   onAddRecord,
   onDeleteRecord,
   onUpdateRecord,
+  onPromoteToNextStage,
   onPromoteToProduction,
   onPromoteScrapToCasting,
-  onPromoteToNextStage,
   onPromoteSplitStage,
+  mode,
 }) => {
   // Stepper Sub-navigation ("قبل صفحة بعد صفحة ומثل هسة")
   const [formMode, setFormMode] = useState<"before" | "after" | "both">("before");
 
   // Stage type inside form
-  const [stageType, setStageType] = useState<"bombing" | "repair" | "vacuum">("bombing");
+  const [stageType, setStageType] = useState<"bombing" | "repair" | "vacuum">(mode);
+
+  // Sync state and fields when mode changes
+  useEffect(() => {
+    setStageType(mode);
+    setFormMode("before");
+    setWeightBefore("");
+    setWeightAfter("");
+    setDamagedWeight("");
+    setPiecesCount("");
+    setNotes("");
+    setDetails("");
+    setBeforeImage("");
+    setAfterImage("");
+    setDamagedImage("");
+  }, [mode]);
 
   // Before inputs
   const [date, setDate] = useState<string>(new Date().toISOString().substring(0, 10));
@@ -80,6 +98,9 @@ export const RollingTab: React.FC<RollingTabProps> = ({
   const [afterFormImage, setAfterFormImage] = useState<string>("");
   const [afterFormDamagedImage, setAfterFormDamagedImage] = useState<string>("");
   const [afterFormNotes, setAfterFormNotes] = useState<string>("");
+  const [varianceReason, setVarianceReason] = useState<string>("");
+  const [afterFormVarianceReason, setAfterFormVarianceReason] = useState<string>("");
+  const [updatingVarianceReason, setUpdatingVarianceReason] = useState<string>("");
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -193,6 +214,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
       details: details.trim(),
       image: afterImage || undefined,
       notes: notes.trim(),
+      varianceReason: varianceReason.trim(),
       isPending: false,
       beforeImage,
       afterImage,
@@ -208,6 +230,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
     setAfterImage("");
     setDamagedImage("");
     setNotes("");
+    setVarianceReason("");
   };
 
   // 3. Complete standalone pending record
@@ -238,7 +261,10 @@ export const RollingTab: React.FC<RollingTabProps> = ({
       afterFormNotes.trim(),
       afterFormImage,
       afterFormDamagedImage,
-      afterFormImage
+      afterFormImage,
+      undefined,
+      undefined,
+      afterFormVarianceReason.trim()
     );
 
     setSelectedPendingId("");
@@ -249,6 +275,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
     setAfterFormImage("");
     setAfterFormDamagedImage("");
     setAfterFormNotes("");
+    setAfterFormVarianceReason("");
 
     alert("تم تصفية العجز وإرسال القطع للجرد النهائي ⚖️");
   };
@@ -267,6 +294,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
     setUpNotes(record.notes || "");
     setUpAfterImage("");
     setUpDamagedImage("");
+    setUpdatingVarianceReason(record.varianceReason || "");
   };
 
   const handleSaveUpdate = (e: React.FormEvent) => {
@@ -292,9 +320,13 @@ export const RollingTab: React.FC<RollingTabProps> = ({
         upNotes.trim(),
         upAfterImage,
         upDamagedImage,
-        upAfterImage
+        upAfterImage,
+        undefined,
+        undefined,
+        updatingVarianceReason.trim()
       );
       setUpdatingRecordId(null);
+      setUpdatingVarianceReason("");
     }
   };
 
@@ -310,6 +342,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
   const [editingNotes, setEditingNotes] = useState<string>("");
   const [editingImage, setEditingImage] = useState<string>("");
   const [editingDamagedImage, setEditingDamagedImage] = useState<string>("");
+  const [editingVarianceReason, setEditingVarianceReason] = useState<string>("");
 
   const handleOpenGeneralEdit = (record: RollingRecord) => {
     setEditingRecord(record);
@@ -323,6 +356,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
     setEditingNotes(record.notes || "");
     setEditingImage(record.image || "");
     setEditingDamagedImage(record.damagedImage || "");
+    setEditingVarianceReason(record.varianceReason || "");
   };
 
   const handleSaveGeneralEdit = (e: React.FormEvent) => {
@@ -361,18 +395,25 @@ export const RollingTab: React.FC<RollingTabProps> = ({
       editingDamagedImage,
       editingImage,
       editingDate,
-      editingTime
+      editingTime,
+      editingVarianceReason.trim()
     );
 
     setEditingRecord(null);
+    setEditingVarianceReason("");
     alert("تم تعديل السجل وتحديث أوزان ونسب مرحلة التفجير والفاكيوم بنجاح! ⚖️");
   };
 
+  // Filtering records by active layout mode
+  const stageRecords = records.filter((r) => {
+    return r.stageType === mode;
+  });
+
   // Pending records in Rolling
-  const pendingRecords = records.filter((r) => r.isPending);
+  const pendingRecords = stageRecords.filter((r) => r.isPending);
 
   // Filters output
-  const filteredRecords = records.filter((r) => {
+  const filteredRecords = stageRecords.filter((r) => {
     if (!showPromoted && r.isPromoted) return false;
     if (filterStage !== "all" && r.stageType !== filterStage) return false;
     if (!searchQuery) return true;
@@ -385,8 +426,8 @@ export const RollingTab: React.FC<RollingTabProps> = ({
   });
 
   // Aggregated Sum calculations for completed entries
-  const completedRecords = records.filter((r) => !r.isPending);
-  const totalBefore = records.reduce((sum, r) => sum + r.weightBefore, 0);
+  const completedRecords = stageRecords.filter((r) => !r.isPending);
+  const totalBefore = stageRecords.reduce((sum, r) => sum + r.weightBefore, 0);
   const totalAfter = completedRecords.reduce((sum, r) => sum + (r.weightAfter ?? 0), 0);
   const totalDamaged = completedRecords.reduce((sum, r) => sum + (r.damagedWeight ?? 0), 0);
   const totalLoss = completedRecords.reduce((sum, r) => sum + (r.loss ?? 0), 0);
@@ -401,11 +442,25 @@ export const RollingTab: React.FC<RollingTabProps> = ({
           {/* Title Header */}
           <div className="flex items-center gap-3 border-b border-[#222] pb-4 mb-4">
             <div className="p-3 bg-gradient-to-br from-[#d4af37]/20 to-transparent rounded-xl text-[#C5A028] border border-[#d4af37]/10">
-              <Layers className="w-5 h-5 stroke-[2]" />
+              {mode === "bombing" ? (
+                <Flame className="w-5 h-5 stroke-[2] text-[#C5A028]" />
+              ) : mode === "repair" ? (
+                <Wrench className="w-5 h-5 stroke-[2] text-[#C5A028]" />
+              ) : (
+                <Wind className="w-5 h-5 stroke-[2] text-[#C5A028]" />
+              )}
             </div>
             <div>
-              <h2 className="text-md font-bold text-white">تفجير الأحماض وغلق الفاكيوم</h2>
-              <p className="text-[11px] text-[#888] mt-0.5">سحب المسارات، التصليح اليدوي، والتنظيف من الركائز</p>
+              <h2 className="text-md font-bold text-white">
+                {mode === "bombing" ? "قسم تفجير الأحماض والدرفلة" : mode === "repair" ? "قسم التصليح اليدوي والترميم" : "قسم غلق الفاكيوم وبونزة"}
+              </h2>
+              <p className="text-[11px] text-[#888] mt-0.5">
+                {mode === "bombing"
+                  ? "سحب المسارات، وتفجير الفضة والحوامض وتجكير العينة"
+                  : mode === "repair"
+                  ? "تعديل، تلحيم، وتصليح عيوب صب الشجرة يدوياً"
+                  : "سحب وغلاق الفاكيوم، وتلميع وبونزة المشغولات الجاهزة"}
+              </p>
             </div>
           </div>
 
@@ -452,29 +507,19 @@ export const RollingTab: React.FC<RollingTabProps> = ({
               {/* Type selector */}
               <div>
                 <label className="block text-[11px] text-[#aaa] mb-1.5">نوع تصفية المسار الحالي:</label>
-                <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#141414] border border-[#222] rounded-xl text-center">
-                  <button
-                    type="button"
-                    onClick={() => setStageType("bombing")}
-                    className={`py-1.5 text-[10px] font-bold rounded-lg cursor-pointer ${stageType === "bombing" ? "bg-amber-500/10 text-[#C5A028] border border-[#C5A028]/30" : "text-[#777] hover:text-white"}`}
-                  >
-                    💥 تفجير أحماض
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStageType("repair")}
-                    className={`py-1.5 text-[10px] font-bold rounded-lg cursor-pointer ${stageType === "repair" ? "bg-amber-500/10 text-[#C5A028] border border-[#C5A028]/30" : "text-[#777] hover:text-white"}`}
-                  >
-                    🛠️ تصليح يدوي
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStageType("vacuum")}
-                    className={`py-1.5 text-[10px] font-bold rounded-lg cursor-pointer ${stageType === "vacuum" ? "bg-amber-500/10 text-[#C5A028] border border-[#C5A028]/30" : "text-[#777] hover:text-white"}`}
-                  >
-                    🌀 غلق فاكيوم وبونزة
-                  </button>
-                </div>
+                {mode === "bombing" ? (
+                  <div className="p-2.5 bg-amber-500/5 border border-amber-500/25 rounded-xl text-center text-xs font-bold text-amber-400">
+                    💥 تفجير أحماض ودرفلة (مسار بدء الجرد)
+                  </div>
+                ) : mode === "repair" ? (
+                  <div className="p-2.5 bg-sky-500/5 border border-sky-500/25 rounded-xl text-center text-xs font-bold text-sky-400">
+                    🛠️ تصليح يدوي وترميم (مسار الوسط والمتابعة)
+                  </div>
+                ) : (
+                  <div className="p-2.5 bg-emerald-500/5 border border-emerald-500/25 rounded-xl text-center text-xs font-bold text-emerald-400">
+                    🌀 غلق فاكيوم وبونزة (تصفية تلقائية ومسار نهائي)
+                  </div>
+                )}
               </div>
 
               {/* Date / Time */}
@@ -717,6 +762,18 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                     />
                   </div>
 
+                  {/* Variance reason */}
+                  <div>
+                    <label className="block text-[11px] text-[#aaa] mb-1">سبب النقص أو الزيادة (إن وجد)</label>
+                    <input
+                      type="text"
+                      placeholder="أمثلة: برادة أحماض، عجز تجكير، كشط الجدران..."
+                      value={afterFormVarianceReason}
+                      onChange={(e) => setAfterFormVarianceReason(e.target.value)}
+                      className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] outline-none"
+                    />
+                  </div>
+
                   <button
                     type="submit"
                     className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-neutral-950 font-black py-2.5 px-4 rounded-xl shadow-md transition-all cursor-pointer flex justify-center items-center gap-2"
@@ -739,29 +796,19 @@ export const RollingTab: React.FC<RollingTabProps> = ({
               {/* Step sub stage */}
               <div>
                 <label className="block text-[11px] text-[#aaa] mb-1.5">نوع تصفية المسار الحالي:</label>
-                <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#141414] border border-neutral-800 rounded-xl text-center">
-                  <button
-                    type="button"
-                    onClick={() => setStageType("bombing")}
-                    className={`py-1 text-[10px] font-bold rounded-lg ${stageType === "bombing" ? "bg-amber-500/10 text-[#C5A028] border border-[#C5A028]/35" : "text-[#777] hover:text-white"}`}
-                  >
-                    💥 تفجير أحماض
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStageType("repair")}
-                    className={`py-1 text-[10px] font-bold rounded-lg ${stageType === "repair" ? "bg-amber-500/10 text-[#C5A028] border border-[#C5A028]/35" : "text-[#777] hover:text-white"}`}
-                  >
-                    🛠️ تصليح يدوي
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStageType("vacuum")}
-                    className={`py-1 text-[10px] font-bold rounded-lg ${stageType === "vacuum" ? "bg-amber-500/10 text-[#C5A028] border border-[#C5A028]/35" : "text-[#777] hover:text-white"}`}
-                  >
-                    🌀 غلق فاكيوم وبونزة
-                  </button>
-                </div>
+                {mode === "bombing" ? (
+                  <div className="p-2 bg-amber-500/5 border border-amber-500/15 rounded-xl text-center text-xs font-bold text-amber-400">
+                    💥 تفجير أحماض ودرفلة (مسار بدء وعزل النقيصة)
+                  </div>
+                ) : mode === "repair" ? (
+                  <div className="p-2 bg-sky-500/5 border border-sky-500/15 rounded-xl text-center text-xs font-bold text-sky-400">
+                    🛠️ تصليح يدوي وترميم (مسار الوسط وتعديل المشغولات)
+                  </div>
+                ) : (
+                  <div className="p-2 bg-emerald-500/5 border border-emerald-500/15 rounded-xl text-center text-xs font-bold text-emerald-400">
+                    🌀 غلق فاكيوم وبونزة (تصفية تلقائية ومسار نهائي)
+                  </div>
+                )}
               </div>
 
               {/* Date / Time */}
@@ -881,11 +928,23 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                 <textarea rows={2} placeholder="تفاصيل إضافية للدفتر..." value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] outline-none resize-none" />
               </div>
 
+              {/* Variance Reason */}
+              <div>
+                <label className="block text-[11px] text-[#aaa]">سبب النقص أو الزيادة (إن وجد)</label>
+                <input
+                  type="text"
+                  placeholder="أمثلة: كشط يدوي بالجران والتحميض، فاقد عينة..."
+                  value={varianceReason}
+                  onChange={(e) => setVarianceReason(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] outline-none"
+                />
+              </div>
+
               <button
                 type="submit"
                 className="w-full bg-[#C5A028] hover:bg-[#d9b132] text-neutral-950 font-bold py-2.5 px-4 rounded-xl shadow-lg transition-all"
               >
-                ترحيل سجل الأحماض والسحب 🌀
+                {mode === "bombing" ? "ترحيل سجل الأحماض والسحب 💥" : mode === "repair" ? "ترحيل سجل التصليح والترميم 🛠️" : "ترحيل سجل الفاكيوم وبونزة 🌀"}
               </button>
             </form>
           )}
@@ -918,27 +977,6 @@ export const RollingTab: React.FC<RollingTabProps> = ({
               />
               <span>عرض السجلات المرحلة والأرشيف 📂</span>
             </label>
-
-            <div className="flex gap-1 overflow-x-auto w-full md:w-auto scrollbar-none">
-              {[
-                { id: "all", label: "📄 الكل" },
-                { id: "bombing", label: "💥 تفجير أحماض" },
-                { id: "repair", label: "🛠️ تصليح يدوي" },
-                { id: "vacuum", label: "🌀 غلق فاكيوم وبونزة" },
-              ].map((btn) => (
-                <button
-                  key={btn.id}
-                  onClick={() => setFilterStage(btn.id as any)}
-                  className={`px-3 py-1.5 text-[10px] md:text-xs font-bold rounded-lg whitespace-nowrap cursor-pointer transition-all ${
-                    filterStage === btn.id
-                      ? "bg-[#C5A028] text-neutral-950 font-extrabold shadow-sm"
-                      : "text-neutral-400 border border-neutral-800 hover:text-white hover:bg-neutral-900"
-                  }`}
-                >
-                  {btn.label}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
 
@@ -950,6 +988,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                 <tr>
                   <th className="px-3 py-3 text-center font-bold">الإجراءات</th>
                   <th className="px-3 py-3 text-center font-bold">الترحيل والمرحلة التالية</th>
+                  <th className="px-3 py-3 text-center font-bold">سبب النقص أو الزيادة</th>
                   <th className="px-3 py-3 text-center font-bold">صور المعاينة</th>
                   <th className="px-3 py-3 font-bold">المرحلة والمواصفات</th>
                   <th className="px-3 py-3 text-center font-bold">% نسبة العجز</th>
@@ -963,7 +1002,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
               <tbody className="divide-y divide-[#222]">
                 {filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="text-center py-12 text-[#666] text-xs">
+                    <td colSpan={11} className="text-center py-12 text-[#666] text-xs">
                       لا توجد سجلات تصفية أحماض أو سحب مدخلة حالياً. استخدم لوحة التسجيل لبدء الجرد.
                     </td>
                   </tr>
@@ -998,16 +1037,20 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                         </td>
 
                         {/* Automatic promotion actions */}
-                        <td className="px-2 py-4 text-center">
+                        <td className="px-2 py-4 text-center select-none">
                           {isPending ? (
-                            <span className="text-[10px] text-amber-500 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 animate-pulse">⏳ في السحب والدرفلة</span>
+                            <span className="text-[10px] text-amber-500 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 animate-pulse">⏳ قيد المعالجة</span>
+                          ) : record.isPromoted ? (
+                            <div className="flex flex-col items-center justify-center gap-1">
+                              <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">✅ تم الترحيل بنجاح</span>
+                            </div>
                           ) : (
-                            <div className="flex flex-col justify-center items-center gap-1.5 min-w-[120px]">
+                            <div className="flex flex-col justify-center items-center gap-1.5 min-w-[125px]">
                               {onPromoteToNextStage && record.weightAfter !== undefined && record.weightAfter > 0 && record.stageType !== "vacuum" && (
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    if (record.stageType === "bombing") {
+                                    if (record.stageType === "bombing" && onPromoteSplitStage) {
                                       setSplitRecord(record);
                                       setSplitRepairWeight(record.weightAfter?.toString() || "");
                                       setSplitRepairPieces(record.piecesCount?.toString() || "0");
@@ -1017,7 +1060,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                                       onPromoteToNextStage(record.id);
                                     }
                                   }}
-                                  className="flex items-center gap-0.5 text-[9.5px] font-bold bg-indigo-500/10 hover:bg-indigo-600 text-indigo-400 hover:text-white px-2 py-1 rounded border border-indigo-500/20 transition-all cursor-pointer w-full justify-center"
+                                  className="flex items-center gap-0.5 text-[9.5px]/none font-black bg-indigo-500/10 hover:bg-indigo-600 text-indigo-400 hover:text-white px-2 py-1 rounded border border-indigo-500/20 transition-all cursor-pointer w-full justify-center"
                                   title={record.stageType === "bombing" ? "خيارات تجزئة وتحويل الوجبة كقطع فردية" : `تحويل الوجبة للمرحلة التالية بوزن (${record.weightAfter.toFixed(3)}غ)`}
                                 >
                                   <Layers className="w-2.5 h-2.5" />
@@ -1030,7 +1073,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => onPromoteToProduction(record.id)}
-                                  className="flex items-center gap-0.5 text-[9px] font-bold bg-amber-500/10 hover:bg-[#C5A028] text-amber-400 hover:text-neutral-950 px-2 py-1 rounded transition-all cursor-pointer w-full justify-center"
+                                  className="flex items-center gap-0.5 text-[9px]/none font-black bg-[#C5A028]/10 hover:bg-[#C5A028] text-amber-400 hover:text-neutral-950 px-2 py-1 rounded border border-amber-500/20 transition-all cursor-pointer w-full justify-center"
                                   title="ترحيل مشغولات الذهب الصافية كـ(قبل) للمخزن وتسليم الإنتاج"
                                 >
                                   <Award className="w-2.5 h-2.5" />
@@ -1041,14 +1084,27 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => onPromoteScrapToCasting(record.id)}
-                                  className="flex items-center gap-0.5 text-[8.5px] font-bold bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white px-2 py-0.5 rounded transition-all cursor-pointer w-full justify-center"
+                                  className="flex items-center gap-0.5 text-[8.5px]/none font-black bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white px-2 py-1 rounded border border-rose-500/20 transition-all cursor-pointer w-full justify-center"
                                   title="إرجاع رايش وتالف الدرفلة والأحماض لأفران السبك لإعادة صهره"
                                 >
-                                  <RefreshCcw className="w-2.5 h-2.5" />
+                                  <RefreshCcw className="w-2.5 h-2.5 animate-spin-slow" />
                                   <span>تدوير التالف ♻️</span>
                                 </button>
                               )}
                             </div>
+                          )}
+                        </td>
+
+                        {/* Variance Reason mapping */}
+                        <td className="px-2 py-4 text-center max-w-[155px] truncate" title={record.varianceReason}>
+                          {isPending ? (
+                            <span className="text-[10px] text-amber-500 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 animate-pulse">⏳ في السحب والدرفلة</span>
+                          ) : record.varianceReason ? (
+                            <span className="text-amber-400 bg-amber-500/5 px-2 py-1 rounded border border-amber-500/10 font-sans text-[11px]">
+                              {record.varianceReason}
+                            </span>
+                          ) : (
+                            <span className="text-[#555]">-</span>
                           )}
                         </td>
 
@@ -1341,6 +1397,18 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                 />
               </div>
 
+              {/* Variance Reason */}
+              <div>
+                <label className="block text-xs text-[#aaa] mb-1">سبب النقص أو الزيادة</label>
+                <input
+                  type="text"
+                  placeholder="أدخل سبب النقص أو الزيادة..."
+                  value={updatingVarianceReason}
+                  onChange={(e) => setUpdatingVarianceReason(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-1.5 text-xs focus:border-[#C5A028] focus:ring-1 focus:outline-none"
+                />
+              </div>
+
               <div className="flex gap-2.5 pt-3">
                 <button
                   type="submit"
@@ -1496,6 +1564,18 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                 />
               </div>
 
+              {/* Variance Reason */}
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 text-right">سبب النقص أو الزيادة</label>
+                <input
+                  type="text"
+                  placeholder="أدخل سبب النقص أو الزيادة المحدد..."
+                  value={editingVarianceReason}
+                  onChange={(e) => setEditingVarianceReason(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-1.5 text-xs text-right focus:border-[#C5A028] outline-none"
+                />
+              </div>
+
               {/* Action Buttons */}
               <div className="flex gap-2.5 pt-2">
                 <button
@@ -1544,7 +1624,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
               {/* Quick Presets Buttons */}
               <div className="bg-[#141414] border border-[#222] p-3 rounded-xl mb-4">
                 <span className="block text-[10px] text-[#666] mb-2 font-bold">خيارات التوصيل السريعة:</span>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2 text-center">
                   <button
                     type="button"
                     onClick={() => {
@@ -1559,10 +1639,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                     type="button"
                     onClick={() => {
                       setSplitRepairWeight("0");
-                      setSplitReviewPiecesCountZero();
-                      function setSplitReviewPiecesCountZero() {
-                        setSplitRepairPieces("0");
-                      }
+                      setSplitRepairPieces("0");
                     }}
                     className="py-1.5 px-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-black transition-all cursor-pointer text-center"
                   >
@@ -1684,8 +1761,8 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                         </button>
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center justify-center border border-dashed border-[#222] hover:border-indigo-500/40 rounded-xl p-3 text-center cursor-pointer bg-[#141414] hover:bg-[#181818] transition-colors">
-                        <Camera className="w-5 h-5 text-[#555]" />
+                      <label className="flex flex-col items-center justify-center border border-dashed border-[#222] hover:border-indigo-500/40 rounded-xl p-3 text-center cursor-pointer bg-[#141414] hover:bg-[#181818] transition-colors font-sans">
+                        <Camera className="w-5 h-5 text-[#555] cursor-pointer" />
                         <span className="text-[10px] text-[#666] mt-1">تحديد / تصوير لقطع التصليح</span>
                         <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageFile(e, "splitRepair")} />
                       </label>
@@ -1702,7 +1779,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                     <span className="text-[10px] bg-emerald-500/10 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/20">جاهز ومستثنى مباشرة</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 text-right">
+                  <div className="grid grid-cols-2 gap-3 text-right font-sans">
                     <div>
                       <span className="block text-[10px] text-[#666] mb-1">الوزن المتبقي المتجه للفاكيوم</span>
                       <div className="w-full bg-[#121212] border border-[#222] rounded-xl px-2.5 py-1.5 text-xs text-left font-mono text-emerald-400 font-bold select-none">
@@ -1732,8 +1809,8 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                         </button>
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center justify-center border border-dashed border-[#222] hover:border-emerald-500/40 rounded-xl p-3 text-center cursor-pointer bg-[#141414] hover:bg-[#181818] transition-colors">
-                        <Camera className="w-5 h-5 text-[#555]" />
+                      <label className="flex flex-col items-center justify-center border border-dashed border-[#222] hover:border-emerald-500/40 rounded-xl p-3 text-center cursor-pointer bg-[#141414] hover:bg-[#181818] transition-colors font-sans">
+                        <Camera className="w-5 h-5 text-[#555] cursor-pointer" />
                         <span className="text-[10px] text-[#666] mt-1">تحديد / تصوير لقطع الفاكيوم</span>
                         <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageFile(e, "splitVacuum")} />
                       </label>
@@ -1745,7 +1822,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
                 <div className="flex gap-2.5 pt-3">
                   <button
                     type="submit"
-                    className="flex-grow py-2.5 px-4 bg-gradient-to-r from-indigo-500 via-amber-500 to-emerald-500 text-neutral-950 font-black rounded-xl text-xs hover:scale-[1.02] active:scale-95 transition-all shadow-md cursor-pointer"
+                    className="flex-grow py-2.5 px-4 bg-gradient-to-r from-indigo-500 via-[#C5A028] to-emerald-500 text-neutral-950 font-black rounded-xl text-xs hover:scale-[1.02] active:scale-95 transition-all shadow-md cursor-pointer"
                   >
                     🚀 اعتماد التقسيم وصرف القطع
                   </button>

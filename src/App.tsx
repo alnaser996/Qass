@@ -6,10 +6,10 @@ import { RollingTab } from "./components/RollingTab";
 import { ProductionTab } from "./components/ProductionTab";
 import { AnalyticsTab } from "./components/AnalyticsTab";
 import { CastingRecord, RollingRecord, ProductionRecord, TreeCastingRecord } from "./types";
-import { Hammer, Layers, Award, TrendingDown, ClipboardList, TreePine } from "lucide-react";
+import { Hammer, Layers, Award, TrendingDown, ClipboardList, TreePine, Flame, Wind, Wrench } from "lucide-react";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<"casting" | "tree_casting" | "rolling" | "production" | "analytics">("casting");
+  const [activeTab, setActiveTab] = useState<"casting" | "tree_casting" | "bombing" | "repair" | "vacuum" | "production" | "analytics">("casting");
 
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     return (localStorage.getItem("gold_loss_theme") as "dark" | "light") || "dark";
@@ -259,7 +259,8 @@ export default function App() {
     notes?: string,
     afterImage?: string,
     date?: string,
-    time?: string
+    time?: string,
+    varianceReason?: string
   ) => {
     const updated = castingRecords.map((r) => {
       if (r.id === id) {
@@ -271,6 +272,7 @@ export default function App() {
           kar: updatedKar,
           sabba: updatedSabba,
           loss: computedLoss,
+          varianceReason: varianceReason !== undefined ? varianceReason : r.varianceReason,
           isPending: updatedSabba === undefined,
           notes: notes !== undefined ? notes : r.notes,
           afterImage: afterImage || r.afterImage,
@@ -317,7 +319,8 @@ export default function App() {
     damagedImage?: string,
     afterImage?: string,
     date?: string,
-    time?: string
+    time?: string,
+    varianceReason?: string
   ) => {
     const updated = treeCastingRecords.map((r) => {
       if (r.id === id) {
@@ -338,6 +341,7 @@ export default function App() {
           damagedCount: damagedCount !== undefined ? damagedCount : r.damagedCount,
           damagedDetails: damagedDetails !== undefined ? damagedDetails : r.damagedDetails,
           loss: computedLoss,
+          varianceReason: varianceReason !== undefined ? varianceReason : r.varianceReason,
           isPending: updatedProd === undefined && updatedDam === undefined,
           notes: notes !== undefined ? notes : r.notes,
           productionImage: productionImage || r.productionImage,
@@ -384,7 +388,8 @@ export default function App() {
     damagedImage?: string,
     afterImage?: string,
     date?: string,
-    time?: string
+    time?: string,
+    varianceReason?: string
   ) => {
     const updated = rollingRecords.map((r) => {
       if (r.id === id) {
@@ -400,6 +405,7 @@ export default function App() {
           piecesCount: piecesCount !== undefined ? piecesCount : r.piecesCount,
           details: details !== undefined ? details : r.details,
           loss: computedLoss,
+          varianceReason: varianceReason !== undefined ? varianceReason : r.varianceReason,
           isPending: uAfter === undefined,
           notes: notes !== undefined ? notes : r.notes,
           image: image || r.image,
@@ -499,7 +505,6 @@ export default function App() {
     saveToStorage("gold_loss_casting", updatedCasting);
 
     handleAddTreeCasting(newTree);
-    setActiveTab("tree_casting");
     alert(`🚀 تم ترحيل السبيكة (وزن: ${cast.sabba.toFixed(3)}غ) كأرضية لـ "صب الشجرة" وتنزيلها بالكامل من جدول السبك!`);
   };
 
@@ -529,7 +534,6 @@ export default function App() {
     saveToStorage("gold_loss_casting", updatedCasting);
 
     handleAddRolling(newRolling);
-    setActiveTab("rolling");
     alert(`🚀 تم ترحيل السبيكة (وزن: ${cast.sabba.toFixed(3)}غ) كبداية تشغيل فرز تفجير وحوامض، وترحيلها من جدول السبك!`);
   };
 
@@ -566,7 +570,6 @@ export default function App() {
     saveToStorage("gold_loss_tree_casting", updatedTree);
 
     handleAddRolling(newRolling);
-    setActiveTab("rolling");
     alert(`🚀 تم ترحيل مشغولات الشجرة (وزن: ${tree.productionWeight.toFixed(3)}غ) لقسم التفجير، وترحيل الشجرة من جدول التشغيل!`);
   };
 
@@ -603,7 +606,6 @@ export default function App() {
     saveToStorage("gold_loss_tree_casting", updatedTree);
 
     handleAddProduction(newProd);
-    setActiveTab("production");
     alert(`🚀 تم تسليم الوجبة بنجاح للمعرض النهائي وحفظ كامل سجل الصور السابقة، وترحيلها من الشجرة!`);
   };
 
@@ -623,7 +625,6 @@ export default function App() {
       beforeImage: tree.damagedImage,
     };
     handleAddCasting(newCast);
-    setActiveTab("casting");
     alert(`♻️ تم ترحيل خردة وتالف الشجرة (وزن: ${tree.damagedWeight.toFixed(3)}غ) تلقائياً إلى "السبك والصهر" لإعادة تذويبه!`);
   };
 
@@ -662,7 +663,6 @@ export default function App() {
     setRollingRecords(updated);
     saveToStorage("gold_loss_rolling", updated);
 
-    setActiveTab("production");
     alert(`🚀 تم تسليم الوجبة بنجاح للمعرض النهائي وحفظ كامل سجل الصور السابقة، وترحيلها من الحوامض والدرفلة!`);
   };
 
@@ -681,7 +681,6 @@ export default function App() {
       beforeImage: roll.damagedImage,
     };
     handleAddCasting(newCast);
-    setActiveTab("casting");
     alert(`♻️ تم ترحيل رايش وتالف السحب والدرفلة (وزن: ${roll.damagedWeight.toFixed(3)}غ) تلقائياً لإعادة صهره وسبكه كسر من جديد!`);
   };
 
@@ -925,18 +924,46 @@ export default function App() {
             <span>صبة الشجرة بالصور</span>
           </button>
 
-          {/* Rolling / Tabour Tab */}
+          {/* Bombing (Acids) Tab */}
           <button
-            onClick={() => setActiveTab("rolling")}
+            onClick={() => setActiveTab("bombing")}
             className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-5 py-2.5 md:py-3.5 rounded-xl font-bold text-[11px] md:text-xs lg:text-sm whitespace-nowrap cursor-pointer transition-all duration-300 ${
-              activeTab === "rolling"
+              activeTab === "bombing"
                 ? "bg-gradient-to-r from-amber-500/20 to-yellow-600/10 text-[#C5A028] border border-amber-500/35 shadow-[0_0_15px_rgba(197,160,40,0.15)] font-extrabold"
                 : "border border-transparent text-[#888] hover:text-[#fff] hover:bg-[#1a1a1a]/50"
             }`}
           >
-            <Layers className="w-4 h-4 text-[#C5A028]" />
+            <Flame className="w-4 h-4 text-[#C5A028]" />
             <span className="opacity-60 text-[10px] font-mono select-none">٠٣.</span>
-            <span>التفجير والفاكيوم</span>
+            <span>التفجير والأحماض 💥</span>
+          </button>
+
+          {/* Repair (Manual Repair) Tab */}
+          <button
+            onClick={() => setActiveTab("repair")}
+            className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-5 py-2.5 md:py-3.5 rounded-xl font-bold text-[11px] md:text-xs lg:text-sm whitespace-nowrap cursor-pointer transition-all duration-300 ${
+              activeTab === "repair"
+                ? "bg-gradient-to-r from-amber-500/20 to-yellow-600/10 text-[#C5A028] border border-amber-500/35 shadow-[0_0_15px_rgba(197,160,40,0.15)] font-extrabold"
+                : "border border-transparent text-[#888] hover:text-[#fff] hover:bg-[#1a1a1a]/50"
+            }`}
+          >
+            <Wrench className="w-4 h-4 text-[#C5A028]" />
+            <span className="opacity-60 text-[10px] font-mono select-none">٠٤.</span>
+            <span>التصليح اليدوي 🛠️</span>
+          </button>
+
+          {/* Vacuum Tab */}
+          <button
+            onClick={() => setActiveTab("vacuum")}
+            className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-5 py-2.5 md:py-3.5 rounded-xl font-bold text-[11px] md:text-xs lg:text-sm whitespace-nowrap cursor-pointer transition-all duration-300 ${
+              activeTab === "vacuum"
+                ? "bg-gradient-to-r from-amber-500/20 to-yellow-600/10 text-[#C5A028] border border-amber-500/35 shadow-[0_0_15px_rgba(197,160,40,0.15)] font-extrabold"
+                : "border border-transparent text-[#888] hover:text-[#fff] hover:bg-[#1a1a1a]/50"
+            }`}
+          >
+            <Wind className="w-4 h-4 text-[#C5A028]" />
+            <span className="opacity-60 text-[10px] font-mono select-none">٠٥.</span>
+            <span>الفاكيوم والبونزة 🌀</span>
           </button>
 
           {/* Production Tab */}
@@ -949,7 +976,7 @@ export default function App() {
             }`}
           >
             <Award className="w-4 h-4 text-[#C5A028]" />
-            <span className="opacity-60 text-[10px] font-mono select-none">٠٤.</span>
+            <span className="opacity-60 text-[10px] font-mono select-none">٠٦.</span>
             <span>تسليم المشغولات النهائية</span>
           </button>
 
@@ -963,7 +990,7 @@ export default function App() {
             }`}
           >
             <TrendingDown className="w-4 h-4 text-rose-500" />
-            <span className="opacity-60 text-[10px] font-mono select-none">٠٥.</span>
+            <span className="opacity-60 text-[10px] font-mono select-none">٠٧.</span>
             <span>تتبع وجرد النقيصة الشامل</span>
           </button>
         </div>
@@ -976,8 +1003,6 @@ export default function App() {
               onAddRecord={handleAddCasting}
               onDeleteRecord={handleDeleteCasting}
               onUpdateRecord={handleUpdateCasting}
-              onPromoteToTree={handlePromoteCastingToTree}
-              onPromoteToRolling={handlePromoteCastingToRolling}
             />
           )}
 
@@ -987,21 +1012,47 @@ export default function App() {
               onAddRecord={handleAddTreeCasting}
               onDeleteRecord={handleDeleteTreeCasting}
               onUpdateRecord={handleUpdateTreeCasting}
-              onPromoteToRolling={handlePromoteTreeToRolling}
-              onPromoteToProduction={handlePromoteTreeToProduction}
-              onPromoteScrapToCasting={handlePromoteTreeScrapToCasting}
             />
           )}
 
-          {activeTab === "rolling" && (
+          {activeTab === "bombing" && (
             <RollingTab
+              mode="bombing"
               records={rollingRecords}
               onAddRecord={handleAddRolling}
               onDeleteRecord={handleDeleteRolling}
               onUpdateRecord={handleUpdateRolling}
+              onPromoteToNextStage={handlePromoteRollingToNextStage}
               onPromoteToProduction={handlePromoteRollingToProduction}
               onPromoteScrapToCasting={handlePromoteRollingScrapToCasting}
+              onPromoteSplitStage={handlePromoteRollingSplitStage}
+            />
+          )}
+
+          {activeTab === "repair" && (
+            <RollingTab
+              mode="repair"
+              records={rollingRecords}
+              onAddRecord={handleAddRolling}
+              onDeleteRecord={handleDeleteRolling}
+              onUpdateRecord={handleUpdateRolling}
               onPromoteToNextStage={handlePromoteRollingToNextStage}
+              onPromoteToProduction={handlePromoteRollingToProduction}
+              onPromoteScrapToCasting={handlePromoteRollingScrapToCasting}
+              onPromoteSplitStage={handlePromoteRollingSplitStage}
+            />
+          )}
+
+          {activeTab === "vacuum" && (
+            <RollingTab
+              mode="vacuum"
+              records={rollingRecords}
+              onAddRecord={handleAddRolling}
+              onDeleteRecord={handleDeleteRolling}
+              onUpdateRecord={handleUpdateRolling}
+              onPromoteToNextStage={handlePromoteRollingToNextStage}
+              onPromoteToProduction={handlePromoteRollingToProduction}
+              onPromoteScrapToCasting={handlePromoteRollingScrapToCasting}
               onPromoteSplitStage={handlePromoteRollingSplitStage}
             />
           )}

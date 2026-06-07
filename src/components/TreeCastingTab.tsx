@@ -20,11 +20,9 @@ interface TreeCastingTabProps {
     damagedImage?: string,
     afterImage?: string,
     date?: string,
-    time?: string
+    time?: string,
+    varianceReason?: string
   ) => void;
-  onPromoteToRolling?: (id: string) => void;
-  onPromoteToProduction?: (id: string) => void;
-  onPromoteScrapToCasting?: (id: string) => void;
 }
 
 export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
@@ -32,9 +30,6 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
   onAddRecord,
   onDeleteRecord,
   onUpdateRecord,
-  onPromoteToRolling,
-  onPromoteToProduction,
-  onPromoteScrapToCasting,
 }) => {
   // Navigation for registration steps ("قبل صفحة بعد صفحة ומثل هسة")
   const [formMode, setFormMode] = useState<"before" | "after" | "both">("before");
@@ -74,6 +69,9 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
   const [afterFormDamagedDetails, setAfterFormDamagedDetails] = useState<string>("");
   const [afterFormDamagedImage, setAfterFormDamagedImage] = useState<string>("");
   const [afterFormNotes, setAfterFormNotes] = useState<string>("");
+  const [varianceReason, setVarianceReason] = useState<string>("");
+  const [afterFormVarianceReason, setAfterFormVarianceReason] = useState<string>("");
+  const [updatingVarianceReason, setUpdatingVarianceReason] = useState<string>("");
 
   // Global UI utilities
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -179,6 +177,7 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
       damagedDetails: damagedDetails.trim(),
       damagedImage,
       notes: notes.trim(),
+      varianceReason: varianceReason.trim(),
       isPending: false,
       beforeImage,
       afterImage: productionImage,
@@ -195,6 +194,7 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
     setDamagedImage("");
     setBeforeImage("");
     setNotes("");
+    setVarianceReason("");
   };
 
   // 3. Complete standalone pending tree
@@ -228,7 +228,10 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
       afterFormNotes.trim(),
       afterFormProductionImage,
       afterFormDamagedImage,
-      afterFormProductionImage
+      afterFormProductionImage,
+      undefined,
+      undefined,
+      afterFormVarianceReason.trim()
     );
 
     setSelectedPendingId("");
@@ -241,6 +244,7 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
     setAfterFormDamagedDetails("");
     setAfterFormDamagedImage("");
     setAfterFormNotes("");
+    setAfterFormVarianceReason("");
 
     alert("تم تصفية الشجرة وحساب فاقد صب الفاكيوم بدقة تامة ⚖️");
   };
@@ -257,6 +261,7 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
     setUpDamagedDetails("");
     setUpDamagedImage("");
     setUpNotes(record.notes || "");
+    setUpdatingVarianceReason(record.varianceReason || "");
   };
 
   const handleSaveUpdate = (e: React.FormEvent) => {
@@ -286,9 +291,13 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
         upNotes.trim(),
         upProdImage,
         upDamagedImage,
-        upProdImage
+        upProdImage,
+        undefined,
+        undefined,
+        updatingVarianceReason.trim()
       );
       setUpdatingRecordId(null);
+      setUpdatingVarianceReason("");
     }
   };
 
@@ -306,6 +315,7 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
   const [editingNotes, setEditingNotes] = useState<string>("");
   const [editingProductionImage, setEditingProductionImage] = useState<string>("");
   const [editingDamagedImage, setEditingDamagedImage] = useState<string>("");
+  const [editingVarianceReason, setEditingVarianceReason] = useState<string>("");
 
   const handleOpenGeneralEdit = (record: TreeCastingRecord) => {
     setEditingRecord(record);
@@ -321,6 +331,7 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
     setEditingNotes(record.notes || "");
     setEditingProductionImage(record.productionImage || "");
     setEditingDamagedImage(record.damagedImage || "");
+    setEditingVarianceReason(record.varianceReason || "");
   };
 
   const handleSaveGeneralEdit = (e: React.FormEvent) => {
@@ -361,10 +372,12 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
       editingDamagedImage,
       editingProductionImage,
       editingDate,
-      editingTime
+      editingTime,
+      editingVarianceReason.trim()
     );
 
     setEditingRecord(null);
+    setEditingVarianceReason("");
     alert("تم تعديل سجل الشجرة وتحديث جميع الأوزان والنسب بنجاح! 🌳");
   };
 
@@ -703,6 +716,18 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
                     />
                   </div>
 
+                  {/* Variance Reason */}
+                  <div>
+                    <label className="block text-[11px] text-[#aaa] mb-1">سبب النقص أو الزيادة (إن وجد)</label>
+                    <input
+                      type="text"
+                      placeholder="امثلة: تطاير كشط الذهب بالجران، عجز كيميائي في الفرن..."
+                      value={afterFormVarianceReason}
+                      onChange={(e) => setAfterFormVarianceReason(e.target.value)}
+                      className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] outline-none"
+                    />
+                  </div>
+
                   <button
                     type="submit"
                     className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-neutral-950 font-black py-2.5 px-4 rounded-xl shadow-md transition-all cursor-pointer flex justify-center items-center gap-2"
@@ -837,6 +862,18 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
                 <textarea rows={2} placeholder="تفاصيل إضافية للدفتر..." value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] outline-none resize-none" />
               </div>
 
+              {/* Variance Reason */}
+              <div>
+                <label className="block text-[11px] text-[#aaa]">سبب النقص أو الزيادة (إن وجد)</label>
+                <input
+                  type="text"
+                  placeholder="أمثلة: فاقد تفتير الجبس، عينات مجتزأة، تطاير فاقد..."
+                  value={varianceReason}
+                  onChange={(e) => setVarianceReason(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] outline-none"
+                />
+              </div>
+
               <button
                 type="submit"
                 className="w-full bg-[#C5A028] hover:bg-[#d9b132] text-neutral-950 font-bold py-2.5 px-4 rounded-xl shadow-lg transition-all"
@@ -885,7 +922,7 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
               <thead className="bg-[#181818] border-b border-[#222] text-[#888] text-xs">
                 <tr>
                   <th className="px-3 py-3 text-center font-bold">الإجراءات</th>
-                  <th className="px-3 py-3 text-center font-bold">الترحيل والمرحلة التالية</th>
+                  <th className="px-3 py-3 text-center font-bold">سبب النقص أو الزيادة</th>
                   <th className="px-3 py-3 text-center font-bold">صور المعاينة</th>
                   <th className="px-3 py-3 font-bold">مخرجات الإنتاج السالم والتالف</th>
                   <th className="px-3 py-3 text-center font-bold">% نسبة العجز</th>
@@ -932,53 +969,16 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
                           </div>
                         </td>
 
-                        {/* Automatic promotions */}
-                        <td className="px-2 py-4 text-center">
+                        {/* Automatic promotions / Variance Reason */}
+                        <td className="px-2 py-4 text-center max-w-[155px] truncate" title={record.varianceReason}>
                           {isPending ? (
                             <span className="text-[10px] text-amber-500 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 animate-pulse">⏳ في جبس الشجرة</span>
-                          ) : record.isPromoted ? (
-                            <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 flex items-center justify-center gap-1 mx-auto w-fit" title="أرشيف - تم ترحيلها إلى المراحل اللاحقة">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                              <span>مُرحّلة بالكامل 🚀</span>
+                          ) : record.varianceReason ? (
+                            <span className="text-amber-400 bg-amber-500/5 px-2 py-1 rounded border border-amber-500/10 font-sans text-[11px]">
+                              {record.varianceReason}
                             </span>
                           ) : (
-                            <div className="flex flex-col justify-center items-center gap-1">
-                              <div className="flex items-center gap-1">
-                                {onPromoteToRolling && record.productionWeight !== undefined && record.productionWeight > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => onPromoteToRolling(record.id)}
-                                    className="flex items-center gap-0.5 text-[9px] font-bold bg-cyan-500/10 hover:bg-cyan-500 text-cyan-405 hover:text-neutral-950 px-1.5 py-1 rounded transition-all cursor-pointer"
-                                    title="ترحيل مشغولات الإنتاج الصافية لقسم التحميض والفاكيوم"
-                                  >
-                                    <Layers className="w-2.5 h-2.5" />
-                                    <span>الدرفلة 🌀</span>
-                                  </button>
-                                )}
-                                {onPromoteToProduction && record.productionWeight !== undefined && record.productionWeight > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => onPromoteToProduction(record.id)}
-                                    className="flex items-center gap-0.5 text-[9px] font-bold bg-amber-500/10 hover:bg-[#C5A028] text-amber-400 hover:text-neutral-950 px-1.5 py-1 rounded transition-all cursor-pointer"
-                                    title="ترحيل المشغولات النهائية مباشرة للمعرض الصنع المعقم"
-                                  >
-                                    <Award className="w-2.5 h-2.5" />
-                                    <span>تسليم 🏆</span>
-                                  </button>
-                                )}
-                              </div>
-                              {onPromoteScrapToCasting && record.damagedWeight !== undefined && record.damagedWeight > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => onPromoteScrapToCasting(record.id)}
-                                  className="flex items-center gap-0.5 text-[8px] font-bold bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white px-1.5 py-0.5 rounded transition-all cursor-pointer w-full justify-center"
-                                  title="ترحيل تالف ورايش الشمع لإعادة الصهر والسبك عيار ٢١"
-                                >
-                                  <RefreshCcw className="w-2 h-2" />
-                                  <span>تدوير التالف ♻️</span>
-                                </button>
-                              )}
-                            </div>
+                            <span className="text-[#555]">-</span>
                           )}
                         </td>
 
@@ -1297,6 +1297,18 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
                 />
               </div>
 
+              {/* Variance Reason */}
+              <div>
+                <label className="block text-xs text-[#aaa] mb-1">سبب النقص أو الزيادة</label>
+                <input
+                  type="text"
+                  placeholder="أدخل سبب النقص أو الزيادة للشجرة..."
+                  value={updatingVarianceReason}
+                  onChange={(e) => setUpdatingVarianceReason(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-1.5 text-xs focus:border-[#C5A028] focus:ring-1 focus:outline-none"
+                />
+              </div>
+
               <div className="flex gap-2.5 pt-3">
                 <button
                   type="submit"
@@ -1471,6 +1483,18 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
                   value={editingNotes}
                   onChange={(e) => setEditingNotes(e.target.value)}
                   className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-1.5 text-xs text-right focus:border-[#C5A028] outline-none resize-none"
+                />
+              </div>
+
+              {/* Variance Reason */}
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 text-right">سبب النقص أو الزيادة</label>
+                <input
+                  type="text"
+                  placeholder="أدخل سبب النقص أو الزيادة..."
+                  value={editingVarianceReason}
+                  onChange={(e) => setEditingVarianceReason(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-1.5 text-xs text-right focus:border-[#C5A028] outline-none"
                 />
               </div>
 

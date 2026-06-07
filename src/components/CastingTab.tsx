@@ -13,10 +13,9 @@ interface CastingTabProps {
     notes?: string,
     afterImage?: string,
     date?: string,
-    time?: string
+    time?: string,
+    varianceReason?: string
   ) => void;
-  onPromoteToTree?: (id: string) => void;
-  onPromoteToRolling?: (id: string) => void;
 }
 
 export const CastingTab: React.FC<CastingTabProps> = ({
@@ -24,8 +23,6 @@ export const CastingTab: React.FC<CastingTabProps> = ({
   onAddRecord,
   onDeleteRecord,
   onUpdateRecord,
-  onPromoteToTree,
-  onPromoteToRolling,
 }) => {
   // Current registration steps inside form panel
   const [formMode, setFormMode] = useState<"before" | "after" | "both">("before");
@@ -45,12 +42,14 @@ export const CastingTab: React.FC<CastingTabProps> = ({
   // Both Inputs (only active in 'both' mode)
   const [sabba, setSabba] = useState<string>("");
   const [afterImage, setAfterImage] = useState<string>("");
+  const [varianceReason, setVarianceReason] = useState<string>(""); // سبب النقص أو الزيادة
 
   // Standalone 'after' mode state (for direct form updates)
   const [selectedPendingId, setSelectedPendingId] = useState<string>("");
   const [afterFormSabba, setAfterFormSabba] = useState<string>("");
   const [afterFormImage, setAfterFormImage] = useState<string>("");
   const [afterFormNotes, setAfterFormNotes] = useState<string>("");
+  const [afterFormVarianceReason, setAfterFormVarianceReason] = useState<string>(""); // سبب النقص أو الزيادة
 
   // Global UI
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -62,6 +61,7 @@ export const CastingTab: React.FC<CastingTabProps> = ({
   const [updatingSabba, setUpdatingSabba] = useState<string>("");
   const [updatingNotes, setUpdatingNotes] = useState<string>("");
   const [updatingAfterImage, setUpdatingAfterImage] = useState<string>("");
+  const [updatingVarianceReason, setUpdatingVarianceReason] = useState<string>(""); // سبب النقص أو الزيادة
 
   // Parsed weights
   const parsedKar = parseFloat(kar) || 0;
@@ -128,6 +128,7 @@ export const CastingTab: React.FC<CastingTabProps> = ({
       kar: parsedKar,
       sabba: parsedSabba,
       notes: notes.trim(),
+      varianceReason: varianceReason.trim(),
       isPending: false,
       beforeImage,
       afterImage,
@@ -138,6 +139,7 @@ export const CastingTab: React.FC<CastingTabProps> = ({
     setBeforeImage("");
     setAfterImage("");
     setNotes("");
+    setVarianceReason("");
   };
 
   // Standalone 'after' form submission
@@ -155,12 +157,13 @@ export const CastingTab: React.FC<CastingTabProps> = ({
 
     const pendingItem = records.find(r => r.id === selectedPendingId);
     const originalKar = pendingItem ? pendingItem.kar : 0;
-    onUpdateRecord(selectedPendingId, originalKar, parsedUpSabba, afterFormNotes.trim(), afterFormImage);
+    onUpdateRecord(selectedPendingId, originalKar, parsedUpSabba, afterFormNotes.trim(), afterFormImage, undefined, undefined, afterFormVarianceReason.trim());
     
     setSelectedPendingId("");
     setAfterFormSabba("");
     setAfterFormImage("");
     setAfterFormNotes("");
+    setAfterFormVarianceReason("");
     alert("تم استلام الصبة وحساب نقيصة الصهر بنجاح!");
   };
 
@@ -170,6 +173,7 @@ export const CastingTab: React.FC<CastingTabProps> = ({
     setUpdatingSabba("");
     setUpdatingNotes(record.notes || "");
     setUpdatingAfterImage("");
+    setUpdatingVarianceReason(record.varianceReason || "");
   };
 
   const handleSaveUpdate = (e: React.FormEvent) => {
@@ -182,11 +186,12 @@ export const CastingTab: React.FC<CastingTabProps> = ({
     if (updatingRecordId) {
       const updatingRecord = records.find(r => r.id === updatingRecordId);
       const originalKar = updatingRecord ? updatingRecord.kar : 0;
-      onUpdateRecord(updatingRecordId, originalKar, parsedUpSabba, updatingNotes.trim(), updatingAfterImage);
+      onUpdateRecord(updatingRecordId, originalKar, parsedUpSabba, updatingNotes.trim(), updatingAfterImage, undefined, undefined, updatingVarianceReason.trim());
       setUpdatingRecordId(null);
       setUpdatingSabba("");
       setUpdatingNotes("");
       setUpdatingAfterImage("");
+      setUpdatingVarianceReason("");
     }
   };
 
@@ -198,6 +203,7 @@ export const CastingTab: React.FC<CastingTabProps> = ({
   const [editingTime, setEditingTime] = useState<string>("");
   const [editingNotes, setEditingNotes] = useState<string>("");
   const [editingAfterImage, setEditingAfterImage] = useState<string>("");
+  const [editingVarianceReason, setEditingVarianceReason] = useState<string>("");
 
   const handleOpenGeneralEdit = (record: CastingRecord) => {
     setEditingRecord(record);
@@ -207,6 +213,7 @@ export const CastingTab: React.FC<CastingTabProps> = ({
     setEditingTime(record.time || "");
     setEditingNotes(record.notes || "");
     setEditingAfterImage(record.afterImage || "");
+    setEditingVarianceReason(record.varianceReason || "");
   };
 
   const handleSaveGeneralEdit = (e: React.FormEvent) => {
@@ -233,10 +240,12 @@ export const CastingTab: React.FC<CastingTabProps> = ({
       editingNotes.trim(),
       editingAfterImage,
       editingDate,
-      editingTime
+      editingTime,
+      editingVarianceReason.trim()
     );
 
     setEditingRecord(null);
+    setEditingVarianceReason("");
     alert("تم تعديل السجل وتحديث الأوزان وعمليات الحساب بنجاح! ⚖️");
   };
 
@@ -515,6 +524,18 @@ export const CastingTab: React.FC<CastingTabProps> = ({
                     />
                   </div>
 
+                  {/* Variance Reason */}
+                  <div>
+                    <label className="block text-[11px] text-[#aaa] mb-1">سبب النقص أو الزيادة (العجز أو الوفر)</label>
+                    <input
+                      type="text"
+                      placeholder="مثال: شوائب بالكسر، تطاير كلي، عجز طبيعي بالبوتقة..."
+                      value={afterFormVarianceReason}
+                      onChange={(e) => setAfterFormVarianceReason(e.target.value)}
+                      className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] outline-none"
+                    />
+                  </div>
+
                   <button
                     type="submit"
                     className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-[#000] font-black py-2.5 px-4 rounded-xl transition-all cursor-pointer shadow-lg flex items-center justify-center gap-2"
@@ -638,6 +659,18 @@ export const CastingTab: React.FC<CastingTabProps> = ({
                 />
               </div>
 
+              {/* Variance Reason */}
+              <div>
+                <label className="block text-[11px] text-[#aaa] mb-1">سبب النقص أو الزيادة (العجز أو الوفر)</label>
+                <input
+                  type="text"
+                  placeholder="مثال: تطاير فرن، شوائب صبغية بالذهب، إضافة نحاس..."
+                  value={varianceReason}
+                  onChange={(e) => setVarianceReason(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] outline-none"
+                />
+              </div>
+
               {/* Live calc */}
               {parsedKar > 0 && parsedSabba > 0 && (
                 <div className="bg-[#141414] p-3 rounded-lg border border-[#222] text-[11px] space-y-1">
@@ -702,7 +735,7 @@ export const CastingTab: React.FC<CastingTabProps> = ({
               <thead className="bg-[#181818] border-b border-[#222] text-[#888] text-xs">
                 <tr>
                   <th className="px-3 py-3 text-center font-bold">الإجراءات</th>
-                  <th className="px-3 py-3 text-center font-bold">الترحيل والمرحلة التالية</th>
+                  <th className="px-3 py-3 text-center font-bold">سبب النقص أو الزيادة</th>
                   <th className="px-3 py-3 text-center font-bold">صور السبيكة</th>
                   <th className="px-3 py-3 font-bold">ملاحظات الصهر</th>
                   <th className="px-3 py-3 text-center font-bold">% نسبة النقيصة</th>
@@ -748,40 +781,16 @@ export const CastingTab: React.FC<CastingTabProps> = ({
                           </div>
                         </td>
 
-                        {/* Workflow promotion */}
-                        <td className="px-2 py-4 text-center">
+                        {/* Workflow promotion / Variance Reason */}
+                        <td className="px-2 py-4 text-center max-w-[150px] truncate" title={record.varianceReason}>
                           {isPending ? (
                             <span className="text-[10px] text-amber-500 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 animate-pulse">⏳ بانتظار الصبة</span>
-                          ) : record.isPromoted ? (
-                            <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 flex items-center justify-center gap-1 mx-auto w-fit" title="أرشيف - تم ترحيلها إلى المراحل اللاحقة">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                              <span>مُرحّلة بالكامل 🚀</span>
+                          ) : record.varianceReason ? (
+                            <span className="text-amber-400 bg-amber-500/5 px-2 py-1 rounded border border-amber-500/10 font-sans text-[11px]">
+                              {record.varianceReason}
                             </span>
                           ) : (
-                            <div className="flex justify-center items-center gap-1.5">
-                              {onPromoteToTree && (
-                                <button
-                                  type="button"
-                                  onClick={() => onPromoteToTree(record.id)}
-                                  className="flex items-center gap-1 text-[10px] font-black bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-neutral-950 px-2 py-1 rounded-md border border-emerald-500/20 transition-all cursor-pointer hover:scale-105 active:scale-95"
-                                  title="ترحيل السبيكة لصب الشجرة الشمعية"
-                                >
-                                  <TreePine className="w-3 h-3" />
-                                  <span>الشجرة 🌳</span>
-                                </button>
-                              )}
-                              {onPromoteToRolling && (
-                                <button
-                                  type="button"
-                                  onClick={() => onPromoteToRolling(record.id)}
-                                  className="flex items-center gap-1 text-[10px] font-black bg-cyan-500/10 hover:bg-cyan-500 text-cyan-405 hover:text-neutral-950 px-2 py-1 rounded-md border border-cyan-500/20 transition-all cursor-pointer hover:scale-105 active:scale-95"
-                                  title="ترحيل السبيكة للدرفلة والأحماض"
-                                >
-                                  <Layers className="w-3 h-3" />
-                                  <span>الدرفلة 🌀</span>
-                                </button>
-                              )}
-                            </div>
+                            <span className="text-[#555]">-</span>
                           )}
                         </td>
 
@@ -993,6 +1002,18 @@ export const CastingTab: React.FC<CastingTabProps> = ({
                 />
               </div>
 
+              {/* Variance Reason */}
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5">سبب النقص أو الزيادة</label>
+                <input
+                  type="text"
+                  placeholder="أدخل سبب النقص أو الزيادة للدفتر اليدوي..."
+                  value={updatingVarianceReason}
+                  onChange={(e) => setUpdatingVarianceReason(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs focus:border-[#C5A028] focus:ring-1 focus:outline-none"
+                />
+              </div>
+
               <div className="flex gap-2.5 pt-2">
                 <button
                   type="submit"
@@ -1098,6 +1119,18 @@ export const CastingTab: React.FC<CastingTabProps> = ({
                   value={editingNotes}
                   onChange={(e) => setEditingNotes(e.target.value)}
                   className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs text-right focus:border-[#C5A028] focus:ring-1 focus:outline-none resize-none"
+                />
+              </div>
+
+              {/* Variance Reason */}
+              <div>
+                <label className="block text-xs font-semibold text-[#aaa] mb-1.5 text-right">سبب النقص أو الزيادة</label>
+                <input
+                  type="text"
+                  placeholder="سبب عجز الذهب أو الزيادة..."
+                  value={editingVarianceReason}
+                  onChange={(e) => setEditingVarianceReason(e.target.value)}
+                  className="w-full text-white bg-[#141414] border border-[#222] rounded-xl px-3 py-2 text-xs text-right focus:border-[#C5A028] focus:ring-1 focus:outline-none"
                 />
               </div>
 
