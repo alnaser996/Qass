@@ -108,7 +108,7 @@ export const CastingTab: React.FC<CastingTabProps> = ({
     setNotes("");
     
     // Switch to step 2 automatically if there are pending items to encourage completion
-    setFormMode("after");
+    // setFormMode("after");
   };
 
   const handleBothSubmit = (e: React.FormEvent) => {

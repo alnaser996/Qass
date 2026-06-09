@@ -187,7 +187,7 @@ export const RollingTab: React.FC<RollingTabProps> = ({
     setNotes("");
     
     // Automatically switch to step 2 to suggest immediate continuation or subsequent collection
-    setFormMode("after");
+    // setFormMode("after");
     alert("تم ترحيل وجدولة السجل قيد المعالجة الفنية ⏳");
   };
 

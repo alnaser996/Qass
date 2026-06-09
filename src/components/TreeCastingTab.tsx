@@ -148,7 +148,7 @@ export const TreeCastingTab: React.FC<TreeCastingTabProps> = ({
     setNotes("");
     
     // Automatically switch to step 2 to suggest immediate continuation or subsequent collection
-    setFormMode("after");
+    // setFormMode("after");
     alert("تم ترحيل بيانات شحن الشجرة بالوزن المسبق ⏳");
   };
 
